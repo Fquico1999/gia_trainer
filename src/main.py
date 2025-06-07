@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.font as tkFont
 from tkinter import ttk
 import time
 from PIL import Image, ImageDraw, ImageFont, ImageTk
@@ -338,17 +339,39 @@ class GiaApp(tk.Tk):
             btn.pack(side='left', padx=5, ipady=10)
 
     def _display_number_or_word(self, question):
+        """
+        Displays buttons for Number/Word tasks.
+        Calculates button width based on the pixel length of the longest option
+        to ensure text fits correctly.
+        """
         options_frame = tk.Frame(self.task_frame, bg=CONFIG["colors"]["background"])
         options_frame.pack(pady=(100, 20))
-        max_len = max(len(str(o)) for o in question['options'])
-        btn_width = max(10, min(max_len + 2, 20))
-        wrap_length = btn_width * 8 
-        for option in question['options']:
-            btn = tk.Button(options_frame, text=str(option), width=btn_width, wraplength=wrap_length,
-                            justify='center', font=CONFIG["fonts"]["button"],
-                            command=lambda o=option: self._check_answer(o))
-            btn.pack(side='left', padx=10, ipady=4, pady=4)
 
+        # --- Step 1: Measure the text to determine the required width ---
+        button_font = tkFont.Font(font=CONFIG["fonts"]["button"])
+        max_pixel_width = 0
+        for option in question['options']:
+            # Measure the pixel width of the current option text
+            text_width = button_font.measure(str(option))
+            if text_width > max_pixel_width:
+                max_pixel_width = text_width
+        
+        # Add some padding to the width to prevent text from touching the edges
+        # and set this as the wraplength for all buttons.
+        # We also cap the width to prevent it from becoming excessively large.
+        wrap_length = min(max_pixel_width + 20, 400) # Add 20px padding, max 400px wide
+
+        # --- Step 2: Create the buttons with the calculated uniform width ---
+        for option in question['options']:
+            # Use tk.Button which supports wraplength.
+            # We no longer need the 'width' parameter in characters.
+            btn = tk.Button(options_frame,
+                            text=str(option),
+                            wraplength=wrap_length,
+                            justify='center',
+                            font=CONFIG["fonts"]["button"],
+                            command=lambda o=option: self._check_answer(o))
+            btn.pack(side='left', padx=10, ipady=5, pady=5)
     def _display_spatial(self, question):
         self.spatial_images = []
         container_frame = tk.Frame(self.task_frame, bg=CONFIG["colors"]["background"])

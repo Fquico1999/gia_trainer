@@ -108,11 +108,41 @@ class QuestionFactory:
         }
 
     def generate_spatial_visualisation(self):
-        base_letters, rotations, pairs, match_count = ['R', 'F', 'P'], [0, 90, 180, 270], [], 0
-        for _ in range(3):
-            letter, top_is_mirrored = random.choice(base_letters), random.choice([True, False])
-            bottom_is_mirrored = top_is_mirrored if random.random() < 0.5 else not top_is_mirrored
-            if bottom_is_mirrored == top_is_mirrored: match_count += 1
-            top_rotation, bottom_rotation = random.choice(rotations), random.choice(rotations)
-            pairs.append({'letter': letter, 'top_is_mirror': top_is_mirrored, 'top_rot': top_rotation, 'bottom_is_mirror': bottom_is_mirrored, 'bottom_rot': bottom_rotation})
-        return {"type": "Spatial Visualisation", "pairs": pairs, "options": [0, 1, 2, 3], "answer": match_count}
+        """
+        Generates a spatial visualisation task with two pairs, both using the same letter.
+        """
+        base_letters = ['R', 'F', 'P']
+        rotations = [0, 90, 180, 270]
+        pairs = []
+        match_count = 0
+        # Choose one letter per task.
+        task_letter = random.choice(base_letters)
+
+        for _ in range(2):
+            # Each pair will now use the same `task_letter`
+            top_is_mirrored = random.choice([True, False])
+            
+            # 50% chance they are a rotatable match (both mirrored or both not)
+            if random.random() < 0.5:
+                bottom_is_mirrored = top_is_mirrored
+                match_count += 1
+            else:
+                bottom_is_mirrored = not top_is_mirrored
+            
+            top_rotation = random.choice(rotations)
+            bottom_rotation = random.choice(rotations)
+            
+            pairs.append({
+                'letter': task_letter, # Using the single letter for the task
+                'top_is_mirror': top_is_mirrored, 
+                'top_rot': top_rotation, 
+                'bottom_is_mirror': bottom_is_mirrored, 
+                'bottom_rot': bottom_rotation
+            })
+
+        return {
+            "type": "Spatial Visualisation",
+            "pairs": pairs,
+            "options": [0, 1, 2],
+            "answer": match_count
+        }
