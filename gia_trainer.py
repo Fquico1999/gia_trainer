@@ -179,7 +179,6 @@ class QuestionFactory:
             letter = random.choice(base_letters)
             top_is_mirrored = random.choice([True, False])
             
-            # 50% chance they are a rotatable match (both mirrored or both not)
             if random.random() < 0.5:
                 bottom_is_mirrored = top_is_mirrored
                 match_count += 1
@@ -251,7 +250,6 @@ class DataManager:
             if df.empty:
                 return pd.DataFrame()
             
-            # Convert relevant columns to numeric, coercing errors
             df['accuracy'] = pd.to_numeric(df['accuracy'], errors='coerce')
             df['seconds_per_question'] = pd.to_numeric(df['seconds_per_question'], errors='coerce')
             df.dropna(subset=['accuracy', 'seconds_per_question'], inplace=True)
@@ -274,6 +272,7 @@ class GiaApp(tk.Tk):
             CONFIG["files"]["results_log"],
             CONFIG["files"]["summary_log"]
         )
+        self.is_practice_mode = False ### NEW ###
         self.current_task_name = None
         self.current_question = None
         self.question_start_time = 0
@@ -288,7 +287,7 @@ class GiaApp(tk.Tk):
         self._update_timer_id = None
         self.timer_label = None
         self.task_frame = None
-        self.spatial_images = [] # Keep a reference to avoid garbage collection
+        self.spatial_images = []
 
         self._configure_styles()
         self._configure_window()
@@ -297,18 +296,17 @@ class GiaApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._on_closing)
 
     def _configure_window(self):
-        """Sets up the main window properties."""
         self.title("GIA Practice Tool")
-        self.geometry("900x700")
+        self.geometry("900x750") # Increased height slightly for new buttons
         self.configure(bg=CONFIG["colors"]["background"])
 
     def _configure_styles(self):
-        """Configures ttk styles for the application."""
         style = ttk.Style(self)
         style.theme_use('clam')
         bg_color = CONFIG["colors"]["background"]
         
         style.configure('TButton', font=CONFIG["fonts"]["button"], padding=(8, 4))
+        style.configure('Practice.TButton', font=('Helvetica', 12), padding=(6, 3))
         style.configure('Title.TLabel', font=CONFIG["fonts"]["title"], background=bg_color)
         style.configure('Header.TLabel', font=CONFIG["fonts"]["header"], background=bg_color)
         style.configure('Small.TLabel', font=CONFIG["fonts"]["small"], background=bg_color)
@@ -319,64 +317,80 @@ class GiaApp(tk.Tk):
     # --- Screen/Frame Management ---
     
     def _clear_frame(self, frame=None):
-        """Destroys all widgets in the given frame or the main window."""
         target_frame = frame if frame else self
         for widget in target_frame.winfo_children():
             widget.destroy()
 
     def create_welcome_screen(self):
-        """Displays the initial welcome screen with past performance."""
         self._clear_frame()
         
-        ttk.Label(self, text="GIA Practice Tool", style='Title.TLabel').pack(pady=(50, 20))
-        ttk.Label(self, text="Click below to start a new practice series.", style='Header.TLabel').pack(pady=10)
-        ttk.Button(self, text="Start Test Series", command=self.start_series).pack(pady=40, ipady=10)
+        # --- Full Test Series ---
+        ttk.Label(self, text="GIA Practice Tool", style='Title.TLabel').pack(pady=(20, 10))
+        ttk.Label(self, text="Take a full, timed test series to log your performance.", style='Header.TLabel').pack(pady=5)
+        ttk.Button(self, text="Start Full Test Series", command=self.start_series).pack(pady=15, ipady=10)
         
-        # Display past performance
+        ttk.Separator(self, orient='horizontal').pack(fill='x', padx=50, pady=20)
+
+        # --- Practice Mode ---
+        practice_label_text = "Or, Practice a Single Task (results are not logged):"
+        ttk.Label(self, text=practice_label_text, style='Header.TLabel').pack(pady=5)
+        
+        practice_frame = tk.Frame(self, bg=CONFIG["colors"]["background"])
+        practice_frame.pack(pady=10)
+        
+        for task_name in CONFIG["task_durations"].keys():
+            # Use a lambda with a default argument to correctly capture the task_name
+            btn = ttk.Button(practice_frame, text=task_name, style='Practice.TButton',
+                             command=lambda name=task_name: self.start_practice_session(name))
+            btn.pack(pady=4)
+
+        ttk.Separator(self, orient='horizontal').pack(fill='x', padx=50, pady=20)
+
+        # --- Past Performance Display ---
         summary_df = self.data_manager.load_summary_data()
         if not summary_df.empty:
-            # *** BUG FIX: Explicitly select numeric columns for the mean calculation ***
             avg_performance = summary_df.groupby('task_name')[['accuracy', 'seconds_per_question']].mean().reset_index()
             
-            ttk.Label(self, text="Average Past Performance:", style='Header.TLabel').pack(pady=(20, 5))
+            ttk.Label(self, text="Average Logged Performance:", style='Header.TLabel').pack(pady=(0, 5))
             for _, row in avg_performance.iterrows():
                 text = (f"{row['task_name']}: Avg Accuracy {row['accuracy']:.1f}%, "
                         f"Avg Time/Q {row['seconds_per_question']:.3f} s/Q")
                 ttk.Label(self, text=text, style='Small.TLabel').pack()
         else:
-            ttk.Label(self, text="No past summary data available yet.", style='Small.TLabel').pack(pady=20)
-            
-        log_files_text = (f"Performance logs are stored in:\n"
-                          f"{CONFIG['files']['results_log']}\n{CONFIG['files']['summary_log']}")
-        ttk.Label(self, text=log_files_text, style='Italic.TLabel').pack(side='bottom', pady=10)
+            ttk.Label(self, text="No past summary data available yet.", style='Small.TLabel').pack()
 
     def _show_task_intro(self):
-        """Displays an introduction screen before each task begins."""
+        ### MODIFIED ### to show a note in practice mode
         self._clear_frame()
         duration = CONFIG["task_durations"][self.current_task_name]
         
-        ttk.Label(self, text=f"Task {self.current_task_index + 1}: {self.current_task_name}", style='Title.TLabel').pack(pady=(50, 20))
+        title_text = f"Task: {self.current_task_name}"
+        if self.is_practice_mode:
+            title_text = f"Practice Mode: {self.current_task_name}"
+        
+        ttk.Label(self, text=title_text, style='Title.TLabel').pack(pady=(50, 20))
         ttk.Label(self, text=f"You will have {duration} seconds for this task.", style='Header.TLabel').pack(pady=10)
-        ttk.Label(self, text="Answer as many questions as you can. Work quickly and accurately.", style='Header.TLabel').pack(pady=10)
         ttk.Button(self, text="Start Task", command=self.start_current_task).pack(pady=40, ipady=10)
 
+        if self.is_practice_mode:
+            note = "Note: Performance in practice mode is not saved."
+            ttk.Label(self, text=note, style='Italic.TLabel', foreground="blue").pack(pady=20)
+
     def _show_task_summary_screen(self, task_name, stats):
-        """Displays a summary plot after a task is completed."""
+        ### MODIFIED ### to handle different "Continue" actions
         self._clear_frame()
         ttk.Label(self, text=f"Results for: {task_name}", style='Title.TLabel').pack(pady=20)
         
-        # Load all historical data for this task
         summary_df = self.data_manager.load_summary_data()
         history_df = summary_df[summary_df['task_name'] == task_name]
 
-        # Create plot
         fig, ax = plt.subplots(figsize=(6, 6))
         fig.patch.set_facecolor(CONFIG["colors"]["plot_background"])
         ax.set_facecolor(CONFIG["colors"]["plot_background"])
 
         if not history_df.empty:
             ax.scatter(history_df['accuracy'], history_df['seconds_per_question'],
-                       alpha=0.6, s=50, label='Past Attempts', color=CONFIG["colors"]["past_performance"])
+                       alpha=0.6, s=50, label='Past Logged Attempts', color=CONFIG["colors"]["past_performance"])
 
         ax.scatter(stats['accuracy'], stats['spq'], color=CONFIG["colors"]["current_performance"],
                    edgecolors='black', s=120, marker='*', label='This Attempt')
@@ -391,10 +405,17 @@ class GiaApp(tk.Tk):
         canvas = FigureCanvasTkAgg(fig, master=self)
         canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
         
-        ttk.Button(self, text="Continue", command=self.next_task).pack(pady=20, ipady=10)
+        # Determine next action based on mode
+        if self.is_practice_mode:
+            button_text = "Back to Home"
+            command = self.create_welcome_screen
+        else:
+            button_text = "Continue to Next Task"
+            command = self.next_task
+            
+        ttk.Button(self, text=button_text, command=command).pack(pady=20, ipady=10)
 
     def _show_final_results(self):
-        """Displays a summary of the entire test series."""
         self._clear_frame()
         ttk.Label(self, text="Test Series Complete!", style='Title.TLabel').pack(pady=(40, 20))
         
@@ -421,14 +442,22 @@ class GiaApp(tk.Tk):
     # --- Task Flow ---
 
     def start_series(self):
-        """Initializes a new test series."""
+        ### MODIFIED ### to set practice mode to False
+        self.is_practice_mode = False
         self.task_order = list(CONFIG["task_durations"].keys())
         self.current_task_index = -1
         self.series_results = []
         self.next_task()
 
+    def start_practice_session(self, task_name):
+        ### NEW ### method to start a single practice task
+        self.is_practice_mode = True
+        self.current_task_name = task_name
+        self.current_task_index = -1 # Not relevant but good to reset
+        self.series_results = [] # Not used in practice mode but clear anyway
+        self._show_task_intro()
+
     def next_task(self):
-        """Moves to the next task in the series or shows final results."""
         self.current_task_index += 1
         if self.current_task_index < len(self.task_order):
             self.current_task_name = self.task_order[self.current_task_index]
@@ -437,7 +466,6 @@ class GiaApp(tk.Tk):
             self._show_final_results()
 
     def start_current_task(self):
-        """Starts the timer and shows the first question for the current task."""
         self._clear_frame()
         self.task_frame = tk.Frame(self, bg=CONFIG["colors"]["background"])
         self.task_frame.pack(expand=True, fill='both', padx=20, pady=20)
@@ -454,21 +482,32 @@ class GiaApp(tk.Tk):
         self.show_next_question()
 
     def end_task(self):
-        """Ends the current task, cancels timers, and shows the summary."""
+        ### MODIFIED ### to handle logging conditionally
         self._cancel_timers()
         
         total = len(self.current_task_results)
         if total > 0:
             correct = sum(r['correct'] for r in self.current_task_results)
             duration = CONFIG["task_durations"][self.current_task_name]
-            stats = self.data_manager.log_summary_stats(self.current_task_name, total, correct, duration)
+            
+            if self.is_practice_mode:
+                # In practice mode, just calculate stats for the summary screen, don't log.
+                accuracy = (correct / total) * 100
+                spq = duration / total
+                stats = {'accuracy': accuracy, 'spq': spq}
+            else:
+                # In full test mode, log the stats and get them back.
+                stats = self.data_manager.log_summary_stats(self.current_task_name, total, correct, duration)
+            
             self._show_task_summary_screen(self.current_task_name, stats)
         else:
-            # If no questions were answered, just move to the next task
-            self.next_task()
+            # If no questions were answered, decide where to go next
+            if self.is_practice_mode:
+                self.create_welcome_screen()
+            else:
+                self.next_task()
 
     def show_next_question(self):
-        """Generates and displays the next question for the current task."""
         self._clear_frame(self.task_frame)
         
         generator_map = {
@@ -484,24 +523,24 @@ class GiaApp(tk.Tk):
         self.question_start_time = time.time()
 
     def _check_answer(self, selected_answer):
-        """Checks the user's answer, logs it, and shows the next question."""
+        ### MODIFIED ### to log only if not in practice mode
         time_taken_ms = (time.time() - self.question_start_time) * 1000
         is_correct = (selected_answer == self.current_question['answer'])
         
-        self.data_manager.log_question_result(self.current_task_name, is_correct, time_taken_ms)
-        self.current_task_results.append({'correct': is_correct})
-        self.series_results.append({
-            'task': self.current_task_name,
-            'correct': is_correct,
-            'time': time_taken_ms
-        })
+        if not self.is_practice_mode:
+            self.data_manager.log_question_result(self.current_task_name, is_correct, time_taken_ms)
+            self.series_results.append({
+                'task': self.current_task_name,
+                'correct': is_correct,
+                'time': time_taken_ms
+            })
         
+        self.current_task_results.append({'correct': is_correct})
         self.show_next_question()
 
     # --- UI Display Methods ---
 
     def _display_question_ui(self, question):
-        """Routes to the correct UI display method based on question type."""
         q_type = question['type']
         if q_type == 'Reasoning':
             self._display_reasoning_step1(question)
@@ -519,12 +558,9 @@ class GiaApp(tk.Tk):
     def _display_reasoning_step2(self):
         self._clear_frame(self.task_frame)
         question = self.current_question
-        
         ttk.Label(self.task_frame, text=question['question'], style='Header.TLabel').pack(pady=(100, 20))
-        
         options_frame = tk.Frame(self.task_frame, bg=CONFIG["colors"]["background"])
         options_frame.pack(pady=20)
-        
         for option in question['options']:
             btn = ttk.Button(options_frame, text=str(option), width=10, command=lambda o=option: self._check_answer(o))
             btn.pack(side='left', padx=10, ipady=10)
@@ -532,22 +568,17 @@ class GiaApp(tk.Tk):
     def _display_perceptual_speed(self, question):
         container_frame = tk.Frame(self.task_frame, bg=CONFIG["colors"]["background"])
         container_frame.pack(pady=(50, 10))
-        
         top_row_chars = [p[0] for p in question['pairs']]
         bottom_row_chars = [p[1] for p in question['pairs']]
-        
         top_frame = tk.Frame(container_frame, bg=CONFIG["colors"]["background"])
         top_frame.pack()
         for char in top_row_chars:
             ttk.Label(top_frame, text=char, style='MonoLarge.TLabel').pack(side='left')
-            
         bottom_frame = tk.Frame(container_frame, bg=CONFIG["colors"]["background"])
         bottom_frame.pack()
         for char in bottom_row_chars:
             ttk.Label(bottom_frame, text=char, style='MonoLarge.TLabel').pack(side='left')
-
         ttk.Label(self.task_frame, text="How many pairs are the same letter?", style='Header.TLabel').pack(pady=20)
-        
         options_frame = tk.Frame(self.task_frame, bg=CONFIG["colors"]["background"])
         options_frame.pack(pady=20)
         for option in question['options']:
@@ -555,60 +586,43 @@ class GiaApp(tk.Tk):
             btn.pack(side='left', padx=5, ipady=10)
 
     def _display_number_or_word(self, question):
-        # Use tk.Frame and tk.Button here to support wraplength
         options_frame = tk.Frame(self.task_frame, bg=CONFIG["colors"]["background"])
         options_frame.pack(pady=(100, 20))
-        
         max_len = max(len(str(o)) for o in question['options'])
         btn_width = max(10, min(max_len + 2, 20))
-        
-        # Calculate wrap length based on approximate character width. 
-        # You might need to adjust the multiplier (e.g., 8 or 10) depending on the font.
         wrap_length = btn_width * 8 
-        
         for option in question['options']:
-            # *** FIX: Use tk.Button which supports wraplength, not ttk.Button ***
             btn = tk.Button(options_frame, text=str(option), width=btn_width, wraplength=wrap_length,
                             justify='center', font=CONFIG["fonts"]["button"],
                             command=lambda o=option: self._check_answer(o))
             btn.pack(side='left', padx=10, ipady=4, pady=4)
 
     def _display_spatial(self, question):
-        self.spatial_images = []  # Clear previous images
-        
+        self.spatial_images = []
         container_frame = tk.Frame(self.task_frame, bg=CONFIG["colors"]["background"])
         container_frame.pack(pady=(30, 10))
-        
         def make_image(char, is_mirrored, angle, size=80):
             try:
                 font = ImageFont.truetype(CONFIG["fonts"]["spatial_font"], size)
             except IOError:
                 font = ImageFont.load_default()
-
             img = Image.new("RGBA", (size, size), (255, 255, 255, 0))
             draw = ImageDraw.Draw(img)
             draw.text((size / 2, size / 2), char, font=font, fill="black", anchor="mm")
-            
             if is_mirrored:
                 img = img.transpose(Image.FLIP_LEFT_RIGHT)
-            
             rotated_img = img.rotate(angle, expand=True, resample=Image.BICUBIC)
             return ImageTk.PhotoImage(rotated_img)
-
         for i, pair_data in enumerate(question['pairs']):
             canvas = tk.Canvas(container_frame, width=100, height=220, bg="white", highlightthickness=1)
             canvas.grid(row=0, column=i, padx=10)
-            
             top_img = make_image(pair_data['letter'], pair_data['top_is_mirror'], pair_data['top_rot'])
             self.spatial_images.append(top_img)
             canvas.create_image(50, 60, image=top_img)
-            
             bottom_img = make_image(pair_data['letter'], pair_data['bottom_is_mirror'], pair_data['bottom_rot'])
             self.spatial_images.append(bottom_img)
             canvas.create_image(50, 160, image=bottom_img)
-
         ttk.Label(self.task_frame, text="How many pairs can be rotated to match exactly?", style='Header.TLabel').pack(pady=20)
-        
         options_frame = tk.Frame(self.task_frame, bg=CONFIG["colors"]["background"])
         options_frame.pack(pady=20)
         for option in question['options']:
@@ -618,14 +632,12 @@ class GiaApp(tk.Tk):
     # --- Timers and Closing ---
     
     def _update_timer(self):
-        """Decrements the timer label every second."""
         if self.time_left > 0:
             self.timer_label.config(text=f"Time left: {self.time_left}")
             self.time_left -= 1
             self._update_timer_id = self.after(1000, self._update_timer)
     
     def _cancel_timers(self):
-        """Safely cancels all active after() timers."""
         if self._task_timer_id:
             self.after_cancel(self._task_timer_id)
             self._task_timer_id = None
@@ -634,7 +646,6 @@ class GiaApp(tk.Tk):
             self._update_timer_id = None
 
     def _on_closing(self):
-        """Handles window closing event to ensure timers are stopped."""
         self._cancel_timers()
         self.quit()
         self.destroy()
