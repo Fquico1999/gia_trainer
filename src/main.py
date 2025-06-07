@@ -45,7 +45,7 @@ class GiaApp(tk.Tk):
 
     def _configure_window(self):
         self.title("GIA Practice Tool")
-        self.attributes("-fullscreen", True)
+        self.geometry("1100x850")
         self.configure(bg=CONFIG["colors"]["background"])
 
     def _configure_styles(self):
@@ -53,15 +53,8 @@ class GiaApp(tk.Tk):
         style.theme_use('clam')
         bg_color = CONFIG["colors"]["background"]
         
-        style.configure('TButton', font=CONFIG["fonts"]["button"], padding=(12, 6),
-                        background=CONFIG["colors"]["button_bg"],
-                        foreground=CONFIG["colors"]["button_fg"])
-        style.map('TButton', background=[('active', CONFIG["colors"]["button_bg"])] ,
-                   foreground=[('active', CONFIG["colors"]["button_fg"])])
-
-        style.configure('Practice.TButton', font=CONFIG["fonts"]["button"], padding=(10, 5),
-                        background=CONFIG["colors"]["button_bg"],
-                        foreground=CONFIG["colors"]["button_fg"])
+        style.configure('TButton', font=CONFIG["fonts"]["button"], padding=(12, 6))
+        style.configure('Practice.TButton', font=CONFIG["fonts"]["button"], padding=(10, 5))
         style.configure('Title.TLabel', font=CONFIG["fonts"]["title"], background=bg_color)
         style.configure('Header.TLabel', font=CONFIG["fonts"]["header"], background=bg_color)
         style.configure('Small.TLabel', font=CONFIG["fonts"]["small"], background=bg_color)
@@ -118,7 +111,6 @@ class GiaApp(tk.Tk):
             ttk.Label(main_frame, text="No past summary data available yet.", style='Small.TLabel').pack()
 
     def _show_task_intro(self):
-        ### MODIFIED ### to show a note in practice mode
         self._clear_frame()
         duration = CONFIG["task_durations"][self.current_task_name]
 
@@ -138,7 +130,6 @@ class GiaApp(tk.Tk):
             ttk.Label(frame, text=note, style='Italic.TLabel', foreground="blue").pack(pady=20)
 
     def _show_task_summary_screen(self, task_name, stats):
-        ### MODIFIED ### to handle different "Continue" actions
         self._clear_frame()
         frame = tk.Frame(self, bg=CONFIG["colors"]["background"])
         frame.pack(expand=True, fill='both')
@@ -207,7 +198,6 @@ class GiaApp(tk.Tk):
     # --- Task Flow ---
 
     def start_series(self):
-        ### MODIFIED ### to set practice mode to False
         self.is_practice_mode = False
         self.task_order = list(CONFIG["task_durations"].keys())
         self.current_task_index = -1
@@ -215,7 +205,6 @@ class GiaApp(tk.Tk):
         self.next_task()
 
     def start_practice_session(self, task_name):
-        ### NEW ### method to start a single practice task
         self.is_practice_mode = True
         self.current_task_name = task_name
         self.current_task_index = -1 # Not relevant but good to reset
@@ -247,7 +236,6 @@ class GiaApp(tk.Tk):
         self.show_next_question()
 
     def end_task(self):
-        ### MODIFIED ### to handle logging conditionally
         self._cancel_timers()
         
         total = len(self.current_task_results)
@@ -288,7 +276,6 @@ class GiaApp(tk.Tk):
         self.question_start_time = time.time()
 
     def _check_answer(self, selected_answer):
-        ### MODIFIED ### to log only if not in practice mode
         time_taken_ms = (time.time() - self.question_start_time) * 1000
         is_correct = (selected_answer == self.current_question['answer'])
         

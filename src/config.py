@@ -11,13 +11,10 @@ CONFIG = {
         "summary_log": 'gia_summary_log.csv',
     },
     "colors": {
-        # Sleeker dark theme colors
-        "background": "#2b2b2b",
-        "plot_background": "#2b2b2b",
-        "past_performance": "#5dade2",
-        "current_performance": "#e74c3c",
-        "button_bg": "#3c3f41",
-        "button_fg": "#ffffff",
+        "background": "#f0f0f0",
+        "plot_background": "#f0f0f0",
+        "past_performance": "skyblue",
+        "current_performance": "red",
     },
     "fonts": {
         "button": ('Helvetica', 18),
