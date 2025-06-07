@@ -6,7 +6,7 @@ A desktop application built with Python and Tkinter to practice for GIA-style co
 
 -   **Full Test Mode**: Simulate a full, timed test series across all five cognitive areas. Performance is logged and tracked over time.
 -   **Practice Mode**: Practice any single task type without the pressure of logging results. Your performance is still compared against past logged attempts.
--e   **Performance Analytics**: After each task, view a scatter plot of your accuracy vs. speed compared to your historical performance.
+-   **Performance Analytics**: After each task, view a scatter plot of your accuracy vs. speed compared to your historical performance.
 -   **Persistent Logging**: All test mode results are saved to local CSV files for tracking progress.
 
 ## Installation
