@@ -1,3 +1,9 @@
+from themes import THEMES
+
+THEME_NAME = "Forest"  # Options: "Default", "Dark", "Forest"
+
+SELECTED_THEME = THEMES.get(THEME_NAME, THEMES["Default"])
+
 CONFIG = {
     "task_durations": {
         "Reasoning": 60,
@@ -10,20 +16,15 @@ CONFIG = {
         "results_log": 'gia_practice_log.csv',
         "summary_log": 'gia_summary_log.csv',
     },
-    "colors": {
-        "background": "#f0f0f0",
-        "plot_background": "#f0f0f0",
-        "past_performance": "skyblue",
-        "current_performance": "red",
-    },
+    # The 'colors' dict is replaced by SELECTED_THEME
     "fonts": {
-        "button": ('Helvetica', 18),
+        "button": ('Helvetica', 16, 'bold'),
         "title": ('Helvetica', 28, 'bold'),
         "header": ('Helvetica', 16),
         "small": ('Helvetica', 12),
-        "italic": ('Helvetica', 12, 'italic'),
-        "timer": ('Helvetica', 14),
-        "mono_large": ('Courier', 36, 'bold'),
+        "italic": ('Helvetica', 11, 'italic'),
+        "timer": ('Helvetica', 14, 'bold'),
+        "mono_large": ('Courier', 40, 'bold'),
         "spatial_font": "arial.ttf",
     },
 }
