@@ -1,1 +1,22 @@
-gia_*.csv
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+.venv/
+include/
+lib/
+bin/
+pip-selfcheck.json
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+
+# App data
+*.csv
