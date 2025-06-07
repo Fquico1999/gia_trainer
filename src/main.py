@@ -1,263 +1,13 @@
 import tkinter as tk
 from tkinter import ttk
-import random
 import time
-import csv
-import os
-from datetime import datetime
-
-# --- REQUIRED IMPORTS ---
-# This script requires: Pillow, pandas, matplotlib, numpy
-# You can install them with:
-# pip install Pillow pandas matplotlib numpy
 from PIL import Image, ImageDraw, ImageFont, ImageTk
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-# --- CONFIGURATION AND CONSTANTS ---
-CONFIG = {
-    "task_durations": {
-        "Reasoning": 60,
-        "Perceptual Speed": 60,
-        "Number Speed & Accuracy": 60,
-        "Word Meaning": 60,
-        "Spatial Visualisation": 60,
-    },
-    "files": {
-        "results_log": 'gia_practice_log.csv',
-        "summary_log": 'gia_summary_log.csv',
-    },
-    "colors": {
-        "background": "#f0f0f0",
-        "plot_background": "#f0f0f0",
-        "past_performance": "skyblue",
-        "current_performance": "red",
-    },
-    "fonts": {
-        "button": ('Helvetica', 16),
-        "title": ('Helvetica', 24, 'bold'),
-        "header": ('Helvetica', 14),
-        "small": ('Helvetica', 10),
-        "italic": ('Helvetica', 10, 'italic'),
-        "timer": ('Helvetica', 12),
-        "mono_large": ('Courier', 36, 'bold'),
-        "spatial_font": "arial.ttf",
-    },
-}
-
-
-# --- QUESTION GENERATORS ---
-class QuestionFactory:
-    """Generates questions for the different GIA task types."""
-
-    def __init__(self):
-        self._names = [
-            'Alex', 'Ben', 'Chloe', 'David', 'Eva', 'Frank',
-            'Grace', 'Harry', 'Isla', 'Jack', 'Mia', 'Noah'
-        ]
-        self._adjective_pairs = [
-            ('heavier', 'lighter'), ('stronger', 'weaker'), ('faster', 'slower'),
-            ('taller', 'shorter'), ('brighter', 'duller'), ('happier', 'sadder'),
-            ('older', 'younger'), ('richer', 'poorer'), ('simpler', 'more complex'),
-            ('calmer', 'more anxious'), ('rarer', 'more common'), ('warmer', 'colder'),
-            ('wiser', 'more foolish'), ('braver', 'more timid'), ('louder', 'quieter'),
-            ('sharper', 'blunter'), ('smoother', 'rougher'), ('neater', 'messier'),
-            ('cheaper', 'more expensive'), ('darker', 'lighter'), ('earlier', 'later')
-        ]
-        self._comparative_to_base = {
-            'heavier': 'heavy', 'lighter': 'light', 'stronger': 'strong', 'weaker': 'weak',
-            'faster': 'fast', 'slower': 'slow', 'taller': 'tall', 'shorter': 'short',
-            'brighter': 'bright', 'duller': 'dull', 'happier': 'happy', 'sadder': 'sad',
-            'older': 'old', 'younger': 'young', 'richer': 'rich', 'poorer': 'poor',
-            'simpler': 'simple', 'more complex': 'complex', 'calmer': 'calm',
-            'more anxious': 'anxious', 'rarer': 'rare', 'more common': 'common',
-            'warmer': 'warm', 'colder': 'cold', 'wiser': 'wise', 'more foolish': 'foolish',
-            'braver': 'brave', 'more timid': 'timid', 'louder': 'loud', 'quieter': 'quiet',
-            'sharper': 'sharp', 'blunter': 'blunt', 'smoother': 'smooth', 'rougher': 'rough',
-            'neater': 'neat', 'messier': 'messy', 'cheaper': 'cheap',
-            'more expensive': 'expensive', 'darker': 'dark', 'earlier': 'early', 'later': 'late'
-        }
-        self._word_groups = [
-            # Synonyms
-            ('halt', 'stop', 'cold'), ('fast', 'quick', 'chair'), ('happy', 'joyful', 'river'),
-            ('large', 'big', 'car'), ('sofa', 'couch', 'apple'), ('begin', 'start', 'end'),
-            ('silent', 'quiet', 'loud'), ('difficult', 'hard', 'easy'), ('correct', 'right', 'wrong'),
-            ('rich', 'wealthy', 'poor'), ('unhappy', 'sad', 'glad'), ('beautiful', 'pretty', 'ugly'),
-            ('smart', 'intelligent', 'stupid'), ('speak', 'talk', 'listen'),
-            ('finish', 'complete', 'begin'), ('idea', 'thought', 'action'),
-            ('strange', 'unusual', 'normal'), ('powerful', 'strong', 'weak'),
-            ('annual', 'yearly', 'daily'), ('choose', 'select', 'reject'),
-            ('ancient', 'old', 'new'),
-            # Antonyms
-            ('up', 'down', 'table'), ('hot', 'cold', 'window'), ('begin', 'end', 'apple'),
-            ('good', 'bad', 'river'), ('always', 'never', 'banana'), ('accept', 'reject', 'carpet'),
-            ('above', 'below', 'pencil'), ('victory', 'defeat', 'bottle'),
-            ('success', 'failure', 'candle'), ('love', 'hate', 'truck'),
-            ('buy', 'sell', 'mountain'), ('push', 'pull', 'window'), ('light', 'dark', 'cookie'),
-            ('laugh', 'cry', 'forest'), ('remember', 'forget', 'guitar'),
-            ('friend', 'enemy', 'cloud'), ('question', 'answer', 'bridge'),
-            ('sunrise', 'sunset', 'elephant')
-        ]
-
-    def generate_reasoning(self):
-        p1, p2 = random.sample(self._names, 2)
-        adj1, adj2 = random.choice(self._adjective_pairs)
-
-        if random.random() > 0.5:
-            statement = f"{p1} is {adj1} than {p2}."
-            answers = {adj1: p1, adj2: p2}
-        else:
-            base = self._comparative_to_base.get(adj1, adj1)
-            statement = f"{p1} is not as {base} as {p2}."
-            answers = {adj1: p2, adj2: p1}
-
-        question_adj = random.choice([adj1, adj2])
-        return {
-            "type": "Reasoning",
-            "statement": statement,
-            "question": f"Who is {question_adj}?",
-            "options": [p1, p2],
-            "answer": answers[question_adj]
-        }
-
-    def generate_perceptual_speed(self):
-        alphabet = 'abcdefghjkmnpqrstuvwxyz'
-        pairs, match_count = [], 0
-        top_upper = random.choice([True, False])
-        top_fn, bot_fn = (str.upper, str.lower) if top_upper else (str.lower, str.upper)
-
-        for _ in range(4):
-            if random.random() < 0.6:  # 60% chance of a match
-                char = random.choice(alphabet)
-                pairs.append((top_fn(char), bot_fn(char)))
-                match_count += 1
-            else:
-                a, b = random.sample(alphabet, 2)
-                pairs.append((top_fn(a), bot_fn(b)))
-
-        return {
-            "type": "Perceptual Speed",
-            "pairs": pairs,
-            "options": list(range(5)),
-            "answer": match_count
-        }
-
-    def generate_number_speed(self):
-        mid = random.randint(10, 50)
-        d1, d2 = random.randint(2, 15), random.randint(2, 15)
-        while d1 == d2:
-            d2 = random.randint(2, 15)
-
-        low, high = mid - d1, mid + d2
-        answer = high if d2 > d1 else low
-        nums = [low, mid, high]
-        random.shuffle(nums)
-        return {
-            "type": "Number Speed & Accuracy",
-            "options": nums,
-            "answer": answer
-        }
-
-    def generate_word_meaning(self):
-        group = random.choice(self._word_groups)
-        options = list(group)
-        random.shuffle(options)
-        return {
-            "type": "Word Meaning",
-            "options": options,
-            "answer": group[2] # The odd one out is always the 3rd item
-        }
-
-    def generate_spatial_visualisation(self):
-        base_letters = ['R', 'F', 'P']
-        rotations = [0, 90, 180, 270]
-        pairs, match_count = [], 0
-
-        for _ in range(3):
-            letter = random.choice(base_letters)
-            top_is_mirrored = random.choice([True, False])
-            
-            if random.random() < 0.5:
-                bottom_is_mirrored = top_is_mirrored
-                match_count += 1
-            else:
-                bottom_is_mirrored = not top_is_mirrored
-            
-            top_rotation = random.choice(rotations)
-            bottom_rotation = random.choice(rotations)
-            
-            pairs.append({
-                'letter': letter,
-                'top_is_mirror': top_is_mirrored,
-                'top_rot': top_rotation,
-                'bottom_is_mirror': bottom_is_mirrored,
-                'bottom_rot': bottom_rotation
-            })
-
-        return {
-            "type": "Spatial Visualisation",
-            "pairs": pairs,
-            "options": [0, 1, 2, 3],
-            "answer": match_count
-        }
-
-
-# --- DATA HANDLING ---
-class DataManager:
-    """Handles reading from and writing to CSV log files."""
-
-    def __init__(self, results_log, summary_log):
-        self.results_log = results_log
-        self.summary_log = summary_log
-        self._setup_logging()
-
-    def _setup_logging(self):
-        if not os.path.exists(self.results_log):
-            with open(self.results_log, 'w', newline='') as f:
-                csv.writer(f).writerow(['timestamp', 'task_name', 'is_correct', 'time_taken_ms'])
-        
-        if not os.path.exists(self.summary_log):
-            with open(self.summary_log, 'w', newline='') as f:
-                csv.writer(f).writerow(['timestamp', 'task_name', 'total_questions',
-                                        'correct_questions', 'accuracy', 'seconds_per_question'])
-    
-    def log_question_result(self, task_name, is_correct, time_taken_ms):
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        with open(self.results_log, 'a', newline='') as f:
-            csv.writer(f).writerow([timestamp, task_name, int(is_correct), f"{time_taken_ms:.2f}"])
-
-    def log_summary_stats(self, task_name, total, correct, duration):
-        if total == 0:
-            return None
-            
-        accuracy = (correct / total) * 100
-        seconds_per_question = duration / total
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        with open(self.summary_log, 'a', newline='') as f:
-            csv.writer(f).writerow([timestamp, task_name, total, correct,
-                                    f"{accuracy:.2f}", f"{seconds_per_question:.3f}"])
-        
-        return {'accuracy': accuracy, 'spq': seconds_per_question}
-
-    def load_summary_data(self):
-        if not os.path.exists(self.summary_log):
-            return pd.DataFrame()
-        try:
-            df = pd.read_csv(self.summary_log)
-            if df.empty:
-                return pd.DataFrame()
-            
-            df['accuracy'] = pd.to_numeric(df['accuracy'], errors='coerce')
-            df['seconds_per_question'] = pd.to_numeric(df['seconds_per_question'], errors='coerce')
-            df.dropna(subset=['accuracy', 'seconds_per_question'], inplace=True)
-            return df
-        except Exception as e:
-            print(f"Error loading summary data: {e}")
-            return pd.DataFrame()
-
+from config import CONFIG
+from data_manager import DataManager
+from question_factory import QuestionFactory
 
 # --- GUI APPLICATION ---
 class GiaApp(tk.Tk):
@@ -272,7 +22,7 @@ class GiaApp(tk.Tk):
             CONFIG["files"]["results_log"],
             CONFIG["files"]["summary_log"]
         )
-        self.is_practice_mode = False ### NEW ###
+        self.is_practice_mode = False
         self.current_task_name = None
         self.current_question = None
         self.question_start_time = 0
@@ -283,10 +33,8 @@ class GiaApp(tk.Tk):
         self.time_left = 0
 
         # --- Timers and UI Elements ---
-        self._task_timer_id = None
-        self._update_timer_id = None
-        self.timer_label = None
-        self.task_frame = None
+        self._task_timer_id, self._update_timer_id = None, None
+        self.timer_label, self.task_frame = None, None
         self.spatial_images = []
 
         self._configure_styles()
