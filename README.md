@@ -1,6 +1,6 @@
 # GIA Practice Tool
 
-A desktop application built with Python and Tkinter to practice for GIA-style cognitive aptitude tests.
+A desktop application built with Python and Tkinter to practice for GIA-style cognitive aptitude tests. The interface now opens in a larger window with centered controls for easier use.
 
 ## Features
 
@@ -8,6 +8,7 @@ A desktop application built with Python and Tkinter to practice for GIA-style co
 -   **Practice Mode**: Practice any single task type without the pressure of logging results. Your performance is still compared against past logged attempts.
 -   **Performance Analytics**: After each task, view a scatter plot of your accuracy vs. speed compared to your historical performance.
 -   **Persistent Logging**: All test mode results are saved to local CSV files for tracking progress.
+-   **Modern UI**: The application starts with a larger window and centered controls.
 
 ## Installation
 

@@ -45,7 +45,7 @@ class GiaApp(tk.Tk):
 
     def _configure_window(self):
         self.title("GIA Practice Tool")
-        self.geometry("900x750") # Increased height slightly for new buttons
+        self.geometry("1100x850")
         self.configure(bg=CONFIG["colors"]["background"])
 
     def _configure_styles(self):
@@ -53,8 +53,8 @@ class GiaApp(tk.Tk):
         style.theme_use('clam')
         bg_color = CONFIG["colors"]["background"]
         
-        style.configure('TButton', font=CONFIG["fonts"]["button"], padding=(8, 4))
-        style.configure('Practice.TButton', font=('Helvetica', 12), padding=(6, 3))
+        style.configure('TButton', font=CONFIG["fonts"]["button"], padding=(12, 6))
+        style.configure('Practice.TButton', font=CONFIG["fonts"]["button"], padding=(10, 5))
         style.configure('Title.TLabel', font=CONFIG["fonts"]["title"], background=bg_color)
         style.configure('Header.TLabel', font=CONFIG["fonts"]["header"], background=bg_color)
         style.configure('Small.TLabel', font=CONFIG["fonts"]["small"], background=bg_color)
@@ -71,63 +71,69 @@ class GiaApp(tk.Tk):
 
     def create_welcome_screen(self):
         self._clear_frame()
-        
+
+        main_frame = tk.Frame(self, bg=CONFIG["colors"]["background"])
+        main_frame.pack(expand=True)
+
         # --- Full Test Series ---
-        ttk.Label(self, text="GIA Practice Tool", style='Title.TLabel').pack(pady=(20, 10))
-        ttk.Label(self, text="Take a full, timed test series to log your performance.", style='Header.TLabel').pack(pady=5)
-        ttk.Button(self, text="Start Full Test Series", command=self.start_series).pack(pady=15, ipady=10)
-        
-        ttk.Separator(self, orient='horizontal').pack(fill='x', padx=50, pady=20)
+        ttk.Label(main_frame, text="GIA Practice Tool", style='Title.TLabel').pack(pady=(20, 10))
+        ttk.Label(main_frame, text="Take a full, timed test series to log your performance.", style='Header.TLabel').pack(pady=5)
+        ttk.Button(main_frame, text="Start Full Test Series", command=self.start_series).pack(pady=15)
+
+        ttk.Separator(main_frame, orient='horizontal').pack(fill='x', padx=50, pady=20)
 
         # --- Practice Mode ---
         practice_label_text = "Or, Practice a Single Task (results are not logged):"
-        ttk.Label(self, text=practice_label_text, style='Header.TLabel').pack(pady=5)
-        
-        practice_frame = tk.Frame(self, bg=CONFIG["colors"]["background"])
+        ttk.Label(main_frame, text=practice_label_text, style='Header.TLabel').pack(pady=5)
+
+        practice_frame = tk.Frame(main_frame, bg=CONFIG["colors"]["background"])
         practice_frame.pack(pady=10)
         
         for task_name in CONFIG["task_durations"].keys():
             # Use a lambda with a default argument to correctly capture the task_name
             btn = ttk.Button(practice_frame, text=task_name, style='Practice.TButton',
                              command=lambda name=task_name: self.start_practice_session(name))
-            btn.pack(pady=4)
+            btn.pack(pady=6)
 
-        ttk.Separator(self, orient='horizontal').pack(fill='x', padx=50, pady=20)
+        ttk.Separator(main_frame, orient='horizontal').pack(fill='x', padx=50, pady=20)
 
         # --- Past Performance Display ---
         summary_df = self.data_manager.load_summary_data()
         if not summary_df.empty:
             avg_performance = summary_df.groupby('task_name')[['accuracy', 'seconds_per_question']].mean().reset_index()
             
-            ttk.Label(self, text="Average Logged Performance:", style='Header.TLabel').pack(pady=(0, 5))
+            ttk.Label(main_frame, text="Average Logged Performance:", style='Header.TLabel').pack(pady=(0, 5))
             for _, row in avg_performance.iterrows():
                 text = (f"{row['task_name']}: Avg Accuracy {row['accuracy']:.1f}%, "
                         f"Avg Time/Q {row['seconds_per_question']:.3f} s/Q")
-                ttk.Label(self, text=text, style='Small.TLabel').pack()
+                ttk.Label(main_frame, text=text, style='Small.TLabel').pack()
         else:
-            ttk.Label(self, text="No past summary data available yet.", style='Small.TLabel').pack()
+            ttk.Label(main_frame, text="No past summary data available yet.", style='Small.TLabel').pack()
 
     def _show_task_intro(self):
-        ### MODIFIED ### to show a note in practice mode
         self._clear_frame()
         duration = CONFIG["task_durations"][self.current_task_name]
+
+        frame = tk.Frame(self, bg=CONFIG["colors"]["background"])
+        frame.pack(expand=True)
         
         title_text = f"Task: {self.current_task_name}"
         if self.is_practice_mode:
             title_text = f"Practice Mode: {self.current_task_name}"
         
-        ttk.Label(self, text=title_text, style='Title.TLabel').pack(pady=(50, 20))
-        ttk.Label(self, text=f"You will have {duration} seconds for this task.", style='Header.TLabel').pack(pady=10)
-        ttk.Button(self, text="Start Task", command=self.start_current_task).pack(pady=40, ipady=10)
+        ttk.Label(frame, text=title_text, style='Title.TLabel').pack(pady=(50, 20))
+        ttk.Label(frame, text=f"You will have {duration} seconds for this task.", style='Header.TLabel').pack(pady=10)
+        ttk.Button(frame, text="Start Task", command=self.start_current_task).pack(pady=40)
 
         if self.is_practice_mode:
             note = "Note: Performance in practice mode is not saved."
-            ttk.Label(self, text=note, style='Italic.TLabel', foreground="blue").pack(pady=20)
+            ttk.Label(frame, text=note, style='Italic.TLabel', foreground="blue").pack(pady=20)
 
     def _show_task_summary_screen(self, task_name, stats):
-        ### MODIFIED ### to handle different "Continue" actions
         self._clear_frame()
-        ttk.Label(self, text=f"Results for: {task_name}", style='Title.TLabel').pack(pady=20)
+        frame = tk.Frame(self, bg=CONFIG["colors"]["background"])
+        frame.pack(expand=True, fill='both')
+        ttk.Label(frame, text=f"Results for: {task_name}", style='Title.TLabel').pack(pady=20)
         
         summary_df = self.data_manager.load_summary_data()
         history_df = summary_df[summary_df['task_name'] == task_name]
@@ -150,7 +156,7 @@ class GiaApp(tk.Tk):
         ax.grid(True, alpha=0.4)
         fig.tight_layout(pad=3.0)
         
-        canvas = FigureCanvasTkAgg(fig, master=self)
+        canvas = FigureCanvasTkAgg(fig, master=frame)
         canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
         
         # Determine next action based on mode
@@ -160,12 +166,14 @@ class GiaApp(tk.Tk):
         else:
             button_text = "Continue to Next Task"
             command = self.next_task
-            
-        ttk.Button(self, text=button_text, command=command).pack(pady=20, ipady=10)
+
+        ttk.Button(frame, text=button_text, command=command).pack(pady=20)
 
     def _show_final_results(self):
         self._clear_frame()
-        ttk.Label(self, text="Test Series Complete!", style='Title.TLabel').pack(pady=(40, 20))
+        frame = tk.Frame(self, bg=CONFIG["colors"]["background"])
+        frame.pack(expand=True)
+        ttk.Label(frame, text="Test Series Complete!", style='Title.TLabel').pack(pady=(40, 20))
         
         summary_text = "Overall Summary:\n\n"
         for task_name in self.task_order:
@@ -184,13 +192,12 @@ class GiaApp(tk.Tk):
                              f"  - Accuracy: {accuracy:.1f}%\n"
                              f"  - Time/Q: {spq:.3f} s/Q\n\n")
             
-        ttk.Label(self, text=summary_text, style='Small.TLabel', justify='left').pack(pady=20, padx=50)
-        ttk.Button(self, text="Practice Again", command=self.create_welcome_screen).pack(pady=20, ipady=10)
+        ttk.Label(frame, text=summary_text, style='Small.TLabel', justify='left').pack(pady=20, padx=50)
+        ttk.Button(frame, text="Practice Again", command=self.create_welcome_screen).pack(pady=20)
 
     # --- Task Flow ---
 
     def start_series(self):
-        ### MODIFIED ### to set practice mode to False
         self.is_practice_mode = False
         self.task_order = list(CONFIG["task_durations"].keys())
         self.current_task_index = -1
@@ -198,7 +205,6 @@ class GiaApp(tk.Tk):
         self.next_task()
 
     def start_practice_session(self, task_name):
-        ### NEW ### method to start a single practice task
         self.is_practice_mode = True
         self.current_task_name = task_name
         self.current_task_index = -1 # Not relevant but good to reset
@@ -230,7 +236,6 @@ class GiaApp(tk.Tk):
         self.show_next_question()
 
     def end_task(self):
-        ### MODIFIED ### to handle logging conditionally
         self._cancel_timers()
         
         total = len(self.current_task_results)
@@ -271,7 +276,6 @@ class GiaApp(tk.Tk):
         self.question_start_time = time.time()
 
     def _check_answer(self, selected_answer):
-        ### MODIFIED ### to log only if not in practice mode
         time_taken_ms = (time.time() - self.question_start_time) * 1000
         is_correct = (selected_answer == self.current_question['answer'])
         
