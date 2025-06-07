@@ -207,6 +207,11 @@ class GiaApp(tk.Tk):
     
     # --- Helper and Logic Methods ---
 
+    def _go_back_to_menu(self):
+        """Cancels the current task and returns to the welcome screen without saving."""
+        self._cancel_timers()
+        self.create_welcome_screen()
+
     def _make_spatial_image(self, char, is_mirrored, angle, size=80):
         try: font = ImageFont.truetype(CONFIG["fonts"]["spatial_font"], size)
         except IOError: font = ImageFont.load_default()
@@ -233,6 +238,23 @@ class GiaApp(tk.Tk):
         self._clear_frame()
         self.task_frame = tk.Frame(self, bg=self.theme["app_bg"])
         self.task_frame.pack(expand=True, fill='both')
+
+        back_button = tk.Button(
+                self,
+                text="< Menu",
+                font=CONFIG["fonts"]["small"],
+                bg=self.theme["button_bg"],
+                fg=self.theme["button_fg"],
+                activebackground=self.theme["button_active_bg"],
+                activeforeground=self.theme["button_fg"],
+                relief='flat',
+                padx=10,
+                pady=5,
+                command=self._go_back_to_menu  # Call our new method
+            )
+        # Place it in the top-left corner
+        back_button.place(relx=0.0, rely=0.0, x=15, y=15, anchor='nw')
+
         self.current_task_results = []
         self.time_left = CONFIG["task_durations"][self.current_task_name]
         self.timer_label = tk.Label(self, text=f"Time: {self.time_left}", font=CONFIG["fonts"]["timer"], bg=self.theme["app_bg"], fg=self.theme["label_fg"])
@@ -246,12 +268,6 @@ class GiaApp(tk.Tk):
             self.timer_label.config(text=f"Time: {self.time_left}")
             self.time_left -= 1
             self._update_timer_id = self.after(1000, self._update_timer)
-
-    # --- All other logic methods (start_series, end_task, _check_answer, etc.) remain unchanged ---
-    # ... You can copy the rest of the methods from your previous main.py file here ...
-    # From `_show_task_summary_screen` to `_on_closing`
-    
-    # [START of pasted logic methods]
 
     def _show_task_summary_screen(self, task_name, stats):
         self._clear_frame()
