@@ -31,10 +31,36 @@ class QuestionFactory:
             'more expensive': 'expensive', 'darker': 'dark', 'earlier': 'early', 'later': 'late'
         }
         self._word_groups = [
+            # Synonyms
             ('halt', 'stop', 'cold'), ('fast', 'quick', 'chair'), ('happy', 'joyful', 'river'),
             ('large', 'big', 'car'), ('sofa', 'couch', 'apple'), ('begin', 'start', 'end'),
             ('silent', 'quiet', 'loud'), ('difficult', 'hard', 'easy'), ('correct', 'right', 'wrong'),
+            ('rich', 'wealthy', 'poor'), ('unhappy', 'sad', 'glad'), ('beautiful', 'pretty', 'ugly'),
+            ('smart', 'intelligent', 'stupid'), ('speak', 'talk', 'listen'),
+            ('finish', 'complete', 'begin'), ('idea', 'thought', 'action'),
+            ('strange', 'unusual', 'normal'), ('powerful', 'strong', 'weak'),
+            ('annual', 'yearly', 'daily'), ('choose', 'select', 'reject'),
+            ('ancient', 'old', 'new'),
+            # Antonyms
+            ('up', 'down', 'table'), ('hot', 'cold', 'window'), ('begin', 'end', 'apple'),
+            ('good', 'bad', 'river'), ('always', 'never', 'banana'), ('accept', 'reject', 'carpet'),
+            ('above', 'below', 'pencil'), ('victory', 'defeat', 'bottle'),
+            ('success', 'failure', 'candle'), ('love', 'hate', 'truck'),
+            ('buy', 'sell', 'mountain'), ('push', 'pull', 'window'), ('light', 'dark', 'cookie'),
+            ('laugh', 'cry', 'forest'), ('remember', 'forget', 'guitar'),
+            ('friend', 'enemy', 'cloud'), ('question', 'answer', 'bridge'),
+            ('sunrise', 'sunset', 'elephant')
         ]
+
+        # Create a shuffled deck of word groups for the session.
+        self._available_word_groups = self._word_groups.copy()
+        random.shuffle(self._available_word_groups)
+
+    def _reset_word_groups(self):
+        """Resets and reshuffles the pool of available word meaning questions."""
+        print("Word Meaning question pool exhausted. Resetting and reshuffling.")
+        self._available_word_groups = self._word_groups.copy()
+        random.shuffle(self._available_word_groups)
 
     def generate_reasoning(self):
         p1, p2 = random.sample(self._names, 2)
@@ -66,8 +92,20 @@ class QuestionFactory:
         return {"type": "Number Speed & Accuracy", "options": nums, "answer": answer}
 
     def generate_word_meaning(self):
-        group = random.choice(self._word_groups); options = list(group); random.shuffle(options)
-        return {"type": "Word Meaning", "options": options, "answer": group[2]}
+        # If the deck of available questions is empty, reset it.
+        if not self._available_word_groups:
+            self._reset_word_groups()
+
+        # Pop a question from the end of the shuffled list.
+        group = self._available_word_groups.pop()
+        
+        options = list(group)
+        random.shuffle(options)
+        return {
+            "type": "Word Meaning",
+            "options": options,
+            "answer": group[2] # The odd one out is always the 3rd item
+        }
 
     def generate_spatial_visualisation(self):
         base_letters, rotations, pairs, match_count = ['R', 'F', 'P'], [0, 90, 180, 270], [], 0
