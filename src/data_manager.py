@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 from datetime import datetime
 import pandas as pd
 
@@ -8,6 +9,7 @@ class DataManager:
     def __init__(self, results_log, summary_log):
         self.results_log = results_log
         self.summary_log = summary_log
+        self.debug_log = 'gia_debug_log.csv'
         self._setup_logging()
 
     def _setup_logging(self):
@@ -18,7 +20,32 @@ class DataManager:
         if not os.path.exists(self.summary_log):
             with open(self.summary_log, 'w', newline='') as f:
                 csv.writer(f).writerow(['timestamp', 'task_name', 'total_questions', 'correct_questions', 'accuracy', 'seconds_per_question'])
-    
+
+        if not os.path.exists(self.debug_log):
+            with open(self.debug_log, 'w', newline='') as f:
+                csv.writer(f).writerow([
+                    'timestamp', 'task_name', 'question_details', 'selected_answer',
+                    'correct_answer', 'time_taken_ms', 'is_correct'
+                ])
+
+    def log_debug_event(self, task_name, question_data, selected_answer, correct_answer, time_ms, is_correct):
+        """Logs a highly detailed record of a single question event for debugging."""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Use json.dumps to serialize the entire question dictionary into a string
+        question_details_str = json.dumps(question_data)
+
+        with open(self.debug_log, 'a', newline='') as f:
+            csv.writer(f).writerow([
+                timestamp,
+                task_name,
+                question_details_str,
+                selected_answer,
+                correct_answer,
+                f"{time_ms:.2f}",
+                is_correct
+            ])
+
     def log_question_result(self, task_name, is_correct, time_taken_ms):
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         with open(self.results_log, 'a', newline='') as f:

@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 import tkinter.font as tkFont
 import time
+import copy
+import json
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -18,6 +20,8 @@ class GiaApp(tk.Tk):
         self.theme = SELECTED_THEME
 
         # State Management
+        self.settings = copy.deepcopy(CONFIG) # <<< Use a mutable copy for settings
+        self.settings['debug_logging_enabled'] = False # Default to off
         self.factory = QuestionFactory()
         self.data_manager = DataManager(
             CONFIG["files"]["results_log"],
@@ -35,6 +39,9 @@ class GiaApp(tk.Tk):
         self._task_timer_id, self._update_timer_id = None, None
         self.timer_label, self.task_frame = None, None
         self.spatial_images = []
+
+        self.duration_entries = {}
+        self.debug_log_var = tk.BooleanVar()
 
         self._configure_window()
         self.create_welcome_screen()
@@ -57,6 +64,10 @@ class GiaApp(tk.Tk):
         
         main_frame = tk.Frame(self, bg=self.theme["app_bg"])
         main_frame.pack(expand=True, pady=20)
+
+        # Settings button
+        settings_button = tk.Button(self, text="⚙️ Settings", font=CONFIG["fonts"]["small"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], activebackground=self.theme["button_active_bg"], activeforeground=self.theme["button_fg"], relief='flat', command=self.create_settings_screen)
+        settings_button.place(relx=1.0, rely=0.0, x=-15, y=15, anchor='ne')
 
         tk.Label(main_frame, text="GIA Practice Tool", font=CONFIG["fonts"]["title"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(0, 20))
         tk.Label(main_frame, text="Take a full, timed test series to log your performance.", font=CONFIG["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=5)
@@ -88,12 +99,64 @@ class GiaApp(tk.Tk):
                         f"Avg Time/Q {row['seconds_per_question']:.3f} s/Q")
                 tk.Label(main_frame, text=text, font=CONFIG["fonts"]["small"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack()
 
+    def create_settings_screen(self):
+        self._clear_frame()
+        main_frame = tk.Frame(self, bg=self.theme["app_bg"])
+        main_frame.pack(expand=True, pady=20)
+        
+        tk.Label(main_frame, text="Settings", font=CONFIG["fonts"]["title"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(0, 30))
+
+        # --- Task Duration Settings ---
+        tk.Label(main_frame, text="Task Durations (seconds)", font=CONFIG["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(10, 5))
+        
+        durations_frame = tk.Frame(main_frame, bg=self.theme["app_bg"])
+        durations_frame.pack(pady=10)
+        
+        self.duration_entries = {} # Clear old entries
+        for i, (task_name, duration) in enumerate(self.settings["task_durations"].items()):
+            tk.Label(durations_frame, text=f"{task_name}:", font=CONFIG["fonts"]["small"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).grid(row=i, column=0, padx=10, pady=5, sticky='e')
+            entry = tk.Entry(durations_frame, font=CONFIG["fonts"]["small"], width=5, justify='center')
+            entry.insert(0, str(duration))
+            entry.grid(row=i, column=1, padx=10, pady=5)
+            self.duration_entries[task_name] = entry
+
+        # --- Debug Log Settings ---
+        tk.Label(main_frame, text="Logging", font=CONFIG["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(20, 5))
+        
+        self.debug_log_var.set(self.settings['debug_logging_enabled'])
+        log_check = tk.Checkbutton(main_frame, text="Enable Detailed Debug Log (for full tests)", font=CONFIG["fonts"]["small"], bg=self.theme["app_bg"], fg=self.theme["label_fg"], variable=self.debug_log_var, selectcolor=self.theme["app_bg"])
+        log_check.pack()
+
+        # --- Action Buttons ---
+        buttons_frame = tk.Frame(main_frame, bg=self.theme["app_bg"])
+        buttons_frame.pack(pady=40)
+        
+        tk.Button(buttons_frame, text="Save and Back", font=CONFIG["fonts"]["button"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], activebackground=self.theme["button_active_bg"], activeforeground=self.theme["button_fg"], relief='flat', padx=20, pady=10, command=self._save_settings).pack(side='left', padx=10)
+        tk.Button(buttons_frame, text="Cancel", font=CONFIG["fonts"]["button"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], activebackground=self.theme["button_active_bg"], activeforeground=self.theme["button_fg"], relief='flat', padx=20, pady=10, command=self.create_welcome_screen).pack(side='left', padx=10)
+
+    def _save_settings(self):
+        # Save task durations
+        for task_name, entry_widget in self.duration_entries.items():
+            try:
+                # Validate that the input is a positive integer
+                new_duration = int(entry_widget.get())
+                if new_duration > 0:
+                    self.settings["task_durations"][task_name] = new_duration
+            except ValueError:
+                # If input is invalid, just ignore it and keep the old value
+                print(f"Invalid input for {task_name} duration. Not saved.")
+        
+        # Save debug log setting
+        self.settings['debug_logging_enabled'] = self.debug_log_var.get()
+        print("Settings saved.")
+        self.create_welcome_screen()
+
     def _show_task_intro(self):
         self._clear_frame()
         main_frame = tk.Frame(self, bg=self.theme["app_bg"])
         main_frame.pack(expand=True)
 
-        duration = CONFIG["task_durations"][self.current_task_name]
+        duration = self.settings["task_durations"][self.current_task_name]
         title_text = f"Practice: {self.current_task_name}" if self.is_practice_mode else f"Task: {self.current_task_name}"
         
         tk.Label(main_frame, text=title_text, font=CONFIG["fonts"]["title"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(0, 20))
@@ -256,7 +319,7 @@ class GiaApp(tk.Tk):
         back_button.place(relx=0.0, rely=0.0, x=15, y=15, anchor='nw')
 
         self.current_task_results = []
-        self.time_left = CONFIG["task_durations"][self.current_task_name]
+        self.time_left = self.settings["task_durations"][self.current_task_name]
         self.timer_label = tk.Label(self, text=f"Time: {self.time_left}", font=CONFIG["fonts"]["timer"], bg=self.theme["app_bg"], fg=self.theme["label_fg"])
         self.timer_label.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
         self._update_timer()
@@ -313,7 +376,7 @@ class GiaApp(tk.Tk):
             if not results:
                 summary_text += f"{task_name}: No questions answered.\n\n"; continue
             total, correct = len(results), sum(1 for r in results if r['correct'])
-            accuracy, spq = (correct / total) * 100, CONFIG["task_durations"][task_name] / total
+            accuracy, spq = (correct / total) * 100, self.settings["task_durations"][task_name] / total
             summary_text += f"{task_name}:\n  - Answered: {total}\n  - Accuracy: {accuracy:.1f}%\n  - Time/Q: {spq:.3f} s/Q\n\n"
         tk.Label(main_frame, text=summary_text, font=CONFIG["fonts"]["small"], justify='left', bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=20, padx=50)
         tk.Button(main_frame, text="Practice Again", font=CONFIG["fonts"]["button"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], activebackground=self.theme["button_active_bg"], activeforeground=self.theme["button_fg"], relief='flat', padx=20, pady=10, command=self.create_welcome_screen).pack(pady=20)
@@ -333,7 +396,7 @@ class GiaApp(tk.Tk):
         self._cancel_timers()
         total = len(self.current_task_results)
         if total > 0:
-            correct, duration = sum(r['correct'] for r in self.current_task_results), CONFIG["task_durations"][self.current_task_name]
+            correct, duration = sum(r['correct'] for r in self.current_task_results), self.settings["task_durations"][self.current_task_name]
             if self.is_practice_mode:
                 accuracy, spq = (correct / total) * 100, duration / total; stats = {'accuracy': accuracy, 'spq': spq}
             else:
@@ -350,6 +413,17 @@ class GiaApp(tk.Tk):
 
     def _check_answer(self, selected_answer):
         time_taken_ms, is_correct = (time.time() - self.question_start_time) * 1000, (selected_answer == self.current_question['answer'])
+        
+        if self.settings['debug_logging_enabled'] and not self.is_practice_mode:
+            self.data_manager.log_debug_event(
+                task_name=self.current_task_name,
+                question_data=self.current_question,
+                selected_answer=selected_answer,
+                correct_answer=self.current_question['answer'],
+                time_ms=time_taken_ms,
+                is_correct=is_correct
+            )
+        
         if not self.is_practice_mode:
             self.data_manager.log_question_result(self.current_task_name, is_correct, time_taken_ms)
             self.series_results.append({'task': self.current_task_name, 'correct': is_correct, 'time': time_taken_ms})
