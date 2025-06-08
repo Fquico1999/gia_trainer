@@ -342,7 +342,7 @@ class GiaApp(tk.Tk):
             self.time_left -= 1
             self._update_timer_id = self.after(1000, self._update_timer)
 
-    def _show_task_summary_screen(self, task_name, stats, total_questions_answered):
+    def _show_task_summary_screen(self, task_name, stats, total_questions_answered, time_elapsed, max_time):
         self._clear_frame()
         main_frame = tk.Frame(self, bg=self.theme["app_bg"])
         main_frame.pack(expand=True, fill='both')
@@ -364,6 +364,9 @@ class GiaApp(tk.Tk):
             tk.Label(main_frame, text=percentage_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(0,10))
 
         tk.Label(main_frame, text=score_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=5)
+        time_text = f"Time Taken: {time_elapsed:.1f}s / {max_time}s"
+        tk.Label(main_frame, text=time_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=5)
+        
         summary_df = self.data_manager.load_summary_data()
         history_df = summary_df[summary_df['task_name'] == task_name]
 
@@ -411,21 +414,27 @@ class GiaApp(tk.Tk):
             penalty = self.settings["wrong_penalty"][task_name]
             adjusted_score = correct + (wrong * penalty)
 
-            ### NEW: Calculate and add percentage to the summary text ###
             max_possible_score = total
             percentage_of_max = (max(0, adjusted_score) / max_possible_score) * 100 if max_possible_score > 0 else 0
+
+            ### NEW: Calculate and add Time Taken ###
+            # Sum the time for each question (which is stored in milliseconds)
+            total_time_ms = sum(r['time'] for r in results)
+            total_time_s = total_time_ms / 1000.0
+            max_time = self.settings["task_durations"][task_name]
             
             summary_text += (
                 f"{task_name}:\n"
                 f"  - Answered: {total}\n"
                 f"  - Accuracy: {accuracy:.1f}%\n"
                 f"  - Adjusted Score: {adjusted_score:.2f}\n"
-                f"  - Score Percentage: {percentage_of_max:.1f}%\n\n" # Added line
+                f"  - Score Percentage: {percentage_of_max:.1f}%\n"
+                f"  - Time Taken: {total_time_s:.1f}s / {max_time}s\n\n" # Added line
             )
             
         tk.Label(main_frame, text=summary_text, font=self.settings["fonts"]["small"], justify='left', bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=20, padx=50)
         tk.Button(main_frame, text="Practice Again", font=self.settings["fonts"]["button"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], activebackground=self.theme["button_active_bg"], activeforeground=self.theme["button_fg"], relief='flat', command=self.create_welcome_screen).pack(pady=20)
-
+    
     def start_series(self):
         self.is_practice_mode = False; self.task_order = list(CONFIG["task_durations"].keys()); self.current_task_index = -1; self.series_results = []; self.next_task()
 
@@ -443,7 +452,8 @@ class GiaApp(tk.Tk):
         if total > 0:
             correct = sum(r['correct'] for r in self.current_task_results)
             # Use the actual time elapsed if the task ended early, otherwise use the full duration
-            time_elapsed = self.settings["task_durations"][self.current_task_name] - self.time_left
+            max_time = self.settings["task_durations"][self.current_task_name]
+            time_elapsed = max_time - max(0, self.time_left)
             
             if self.is_practice_mode:
                 # Practice mode doesn't use adjusted score
@@ -456,7 +466,7 @@ class GiaApp(tk.Tk):
                     self.current_task_name, total, correct, time_elapsed, penalty
                 )
             
-            self._show_task_summary_screen(self.current_task_name, stats, total)
+            self._show_task_summary_screen(self.current_task_name, stats, total, time_elapsed, max_time)
         else:
             if self.is_practice_mode: self.create_welcome_screen()
             else: self.next_task()
