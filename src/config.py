@@ -5,7 +5,7 @@ THEME_NAME = "Forest"  # Options: "Default", "Dark", "Forest"
 SELECTED_THEME = THEMES.get(THEME_NAME, THEMES["Default"])
 
 CONFIG = {
-    "questions_per_minute": 15,  # 75 questions / 5 minutes
+    "questions_per_minute": 17,  # 75 questions / 5 minutes seems to be the test pace. Here I have it higher for practice
      "wrong_penalty": {
         "Reasoning": -1.0,
         "Perceptual Speed": -0.25,
