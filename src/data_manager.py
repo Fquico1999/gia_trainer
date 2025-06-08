@@ -19,7 +19,10 @@ class DataManager:
         
         if not os.path.exists(self.summary_log):
             with open(self.summary_log, 'w', newline='') as f:
-                csv.writer(f).writerow(['timestamp', 'task_name', 'total_questions', 'correct_questions', 'accuracy', 'seconds_per_question'])
+                csv.writer(f).writerow([
+                    'timestamp', 'task_name', 'total_questions', 'correct_questions',
+                    'accuracy', 'seconds_per_question', 'adjusted_score' # <<< ADDED
+                ])
 
         if not os.path.exists(self.debug_log):
             with open(self.debug_log, 'w', newline='') as f:
@@ -51,14 +54,29 @@ class DataManager:
         with open(self.results_log, 'a', newline='') as f:
             csv.writer(f).writerow([timestamp, task_name, int(is_correct), f"{time_taken_ms:.2f}"])
 
-    def log_summary_stats(self, task_name, total, correct, duration):
-        if total == 0: return None
+    def log_summary_stats(self, task_name, total, correct, duration, wrong_penalty):
+        if total == 0:
+            return None
+            
         accuracy = (correct / total) * 100
         seconds_per_question = duration / total
+        wrong_count = total - correct
+        
+        # Calculate the adjusted score
+        adjusted_score = correct + (wrong_count * wrong_penalty)
+        
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         with open(self.summary_log, 'a', newline='') as f:
-            csv.writer(f).writerow([timestamp, task_name, total, correct, f"{accuracy:.2f}", f"{seconds_per_question:.3f}"])
-        return {'accuracy': accuracy, 'spq': seconds_per_question}
+            csv.writer(f).writerow([
+                timestamp, task_name, total, correct, f"{accuracy:.2f}",
+                f"{seconds_per_question:.3f}", f"{adjusted_score:.2f}" # <<< ADDED
+            ])
+        
+        return {
+            'accuracy': accuracy,
+            'spq': seconds_per_question,
+            'adjusted_score': adjusted_score
+        }
 
     def load_summary_data(self):
         if not os.path.exists(self.summary_log): return pd.DataFrame()

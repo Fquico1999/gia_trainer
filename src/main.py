@@ -27,6 +27,8 @@ class GiaApp(tk.Tk):
             CONFIG["files"]["results_log"],
             CONFIG["files"]["summary_log"]
         )
+        self.question_bank_size = 0
+        self.questions_answered_in_task = 0
         self.is_practice_mode = False
         self.current_task_name = None
         self.current_question = None
@@ -302,6 +304,14 @@ class GiaApp(tk.Tk):
         self.task_frame = tk.Frame(self, bg=self.theme["app_bg"])
         self.task_frame.pack(expand=True, fill='both')
 
+        # Calculate question bank size for this task ---
+        duration_seconds = self.settings["task_durations"][self.current_task_name]
+        duration_minutes = duration_seconds / 60.0
+        qpm = self.settings["questions_per_minute"]
+        
+        self.question_bank_size = max(1, round(duration_minutes * qpm))
+        self.questions_answered_in_task = 0
+
         back_button = tk.Button(
                 self,
                 text="< Menu",
@@ -332,13 +342,28 @@ class GiaApp(tk.Tk):
             self.time_left -= 1
             self._update_timer_id = self.after(1000, self._update_timer)
 
-    def _show_task_summary_screen(self, task_name, stats):
+    def _show_task_summary_screen(self, task_name, stats, total_questions_answered):
         self._clear_frame()
         main_frame = tk.Frame(self, bg=self.theme["app_bg"])
         main_frame.pack(expand=True, fill='both')
 
-        tk.Label(main_frame, text=f"Results for: {task_name}", font=CONFIG["fonts"]["title"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=20)
+        tk.Label(main_frame, text=f"Results for: {task_name}", font=self.settings["fonts"]["title"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=10)
+
+        # Display Adjusted Score
+        score_text = f"Adjusted Score: {stats.get('adjusted_score', 'N/A')}"
+        if isinstance(stats.get('adjusted_score'), (int, float)):
+            user_score = stats['adjusted_score']
+            score_text = f"Adjusted Score: {user_score:.2f}"
         
+            ### NEW: Calculate and display score percentage ###
+            max_possible_score = total_questions_answered
+            # Ensure percentage isn't negative for display
+            percentage_of_max = (max(0, user_score) / max_possible_score) * 100 if max_possible_score > 0 else 0
+            
+            percentage_text = f"Score Percentage: {percentage_of_max:.1f}% (of max {max_possible_score})"
+            tk.Label(main_frame, text=percentage_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(0,10))
+
+        tk.Label(main_frame, text=score_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=5)
         summary_df = self.data_manager.load_summary_data()
         history_df = summary_df[summary_df['task_name'] == task_name]
 
@@ -369,17 +394,37 @@ class GiaApp(tk.Tk):
         self._clear_frame()
         main_frame = tk.Frame(self, bg=self.theme["app_bg"])
         main_frame.pack(expand=True)
-        tk.Label(main_frame, text="Test Series Complete!", font=CONFIG["fonts"]["title"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(40, 20))
+        tk.Label(main_frame, text="Test Series Complete!", font=self.settings["fonts"]["title"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(40, 20))
+        
         summary_text = "Overall Summary:\n\n"
         for task_name in self.task_order:
             results = [r for r in self.series_results if r['task'] == task_name]
             if not results:
-                summary_text += f"{task_name}: No questions answered.\n\n"; continue
-            total, correct = len(results), sum(1 for r in results if r['correct'])
-            accuracy, spq = (correct / total) * 100, self.settings["task_durations"][task_name] / total
-            summary_text += f"{task_name}:\n  - Answered: {total}\n  - Accuracy: {accuracy:.1f}%\n  - Time/Q: {spq:.3f} s/Q\n\n"
-        tk.Label(main_frame, text=summary_text, font=CONFIG["fonts"]["small"], justify='left', bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=20, padx=50)
-        tk.Button(main_frame, text="Practice Again", font=CONFIG["fonts"]["button"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], activebackground=self.theme["button_active_bg"], activeforeground=self.theme["button_fg"], relief='flat', padx=20, pady=10, command=self.create_welcome_screen).pack(pady=20)
+                summary_text += f"{task_name}: No questions answered.\n\n"
+                continue
+
+            total = len(results)
+            correct = sum(1 for r in results if r['correct'])
+            wrong = total - correct 
+            accuracy = (correct / total) * 100
+            
+            penalty = self.settings["wrong_penalty"][task_name]
+            adjusted_score = correct + (wrong * penalty)
+
+            ### NEW: Calculate and add percentage to the summary text ###
+            max_possible_score = total
+            percentage_of_max = (max(0, adjusted_score) / max_possible_score) * 100 if max_possible_score > 0 else 0
+            
+            summary_text += (
+                f"{task_name}:\n"
+                f"  - Answered: {total}\n"
+                f"  - Accuracy: {accuracy:.1f}%\n"
+                f"  - Adjusted Score: {adjusted_score:.2f}\n"
+                f"  - Score Percentage: {percentage_of_max:.1f}%\n\n" # Added line
+            )
+            
+        tk.Label(main_frame, text=summary_text, font=self.settings["fonts"]["small"], justify='left', bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=20, padx=50)
+        tk.Button(main_frame, text="Practice Again", font=self.settings["fonts"]["button"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], activebackground=self.theme["button_active_bg"], activeforeground=self.theme["button_fg"], relief='flat', command=self.create_welcome_screen).pack(pady=20)
 
     def start_series(self):
         self.is_practice_mode = False; self.task_order = list(CONFIG["task_durations"].keys()); self.current_task_index = -1; self.series_results = []; self.next_task()
@@ -396,12 +441,22 @@ class GiaApp(tk.Tk):
         self._cancel_timers()
         total = len(self.current_task_results)
         if total > 0:
-            correct, duration = sum(r['correct'] for r in self.current_task_results), self.settings["task_durations"][self.current_task_name]
+            correct = sum(r['correct'] for r in self.current_task_results)
+            # Use the actual time elapsed if the task ended early, otherwise use the full duration
+            time_elapsed = self.settings["task_durations"][self.current_task_name] - self.time_left
+            
             if self.is_practice_mode:
-                accuracy, spq = (correct / total) * 100, duration / total; stats = {'accuracy': accuracy, 'spq': spq}
+                # Practice mode doesn't use adjusted score
+                accuracy, spq = (correct / total) * 100, time_elapsed / total
+                stats = {'accuracy': accuracy, 'spq': spq, 'adjusted_score': 'N/A'}
             else:
-                stats = self.data_manager.log_summary_stats(self.current_task_name, total, correct, duration)
-            self._show_task_summary_screen(self.current_task_name, stats)
+                # Full test mode calculates and logs the adjusted score
+                penalty = self.settings["wrong_penalty"][self.current_task_name]
+                stats = self.data_manager.log_summary_stats(
+                    self.current_task_name, total, correct, time_elapsed, penalty
+                )
+            
+            self._show_task_summary_screen(self.current_task_name, stats, total)
         else:
             if self.is_practice_mode: self.create_welcome_screen()
             else: self.next_task()
@@ -428,6 +483,15 @@ class GiaApp(tk.Tk):
             self.data_manager.log_question_result(self.current_task_name, is_correct, time_taken_ms)
             self.series_results.append({'task': self.current_task_name, 'correct': is_correct, 'time': time_taken_ms})
         self.current_task_results.append({'correct': is_correct}); self.show_next_question()
+        self.questions_answered_in_task += 1
+        # Check if the question bank is exhausted
+        if not self.is_practice_mode and self.questions_answered_in_task >= self.question_bank_size:
+            # End the task immediately if the question limit is reached in a full test
+            print(f"Question limit of {self.question_bank_size} reached. Ending task.")
+            self.end_task()
+        else:
+            # Otherwise, just show the next question
+            self.show_next_question()
 
     def _cancel_timers(self):
         if self._task_timer_id: self.after_cancel(self._task_timer_id); self._task_timer_id = None
