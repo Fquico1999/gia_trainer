@@ -5,19 +5,34 @@ class QuestionFactory:
 
     def __init__(self):
         self._names = [
-            'Alex', 'Ben', 'Chloe', 'David', 'Eva', 'Frank',
-            'Grace', 'Harry', 'Isla', 'Jack', 'Mia', 'Noah'
+            'Alex', 'Anna', 'Ben', 'Chloe', 'David', 'Emily', 'Ethan', 'Eva', 
+            'Frank', 'Grace', 'Harry', 'Henry', 'Isla', 'Jack', 'James', 'Leo', 
+            'Liam', 'Lily', 'Lucy', 'Max', 'Maya', 'Mia', 'Noah', 'Nora', 
+            'Oliver', 'Olivia', 'Ruby', 'Sam', 'Sophia', 'Tom', 'Zoe'
         ]
+
         self._adjective_pairs = [
+            # Original Pairs
             ('heavier', 'lighter'), ('stronger', 'weaker'), ('faster', 'slower'),
             ('taller', 'shorter'), ('brighter', 'duller'), ('happier', 'sadder'),
             ('older', 'younger'), ('richer', 'poorer'), ('simpler', 'more complex'),
             ('calmer', 'more anxious'), ('rarer', 'more common'), ('warmer', 'colder'),
             ('wiser', 'more foolish'), ('braver', 'more timid'), ('louder', 'quieter'),
             ('sharper', 'blunter'), ('smoother', 'rougher'), ('neater', 'messier'),
-            ('cheaper', 'more expensive'), ('darker', 'lighter'), ('earlier', 'later')
+            ('cheaper', 'more expensive'), ('darker', 'lighter'), ('earlier', 'later'),
+            
+            # New Pairs
+            ('wider', 'narrower'), ('deeper', 'shallower'), ('thicker', 'thinner'),
+            ('kinder', 'meaner'), ('busier', 'freer'), ('luckier', 'unluckier'),
+            ('more patient', 'less patient'), ('more careful', 'more careless'),
+            ('more generous', 'stingier'), ('more skilled', 'less skilled'),
+            ('more polite', 'ruder'), ('more flexible', 'stiffer'),
+            ('more honest', 'more dishonest'), ('more talkative', 'more reserved'),
+            ('more optimistic', 'more pessimistic')
         ]
+        
         self._comparative_to_base = {
+            # Original Mappings
             'heavier': 'heavy', 'lighter': 'light', 'stronger': 'strong', 'weaker': 'weak',
             'faster': 'fast', 'slower': 'slow', 'taller': 'tall', 'shorter': 'short',
             'brighter': 'bright', 'duller': 'dull', 'happier': 'happy', 'sadder': 'sad',
@@ -28,28 +43,133 @@ class QuestionFactory:
             'braver': 'brave', 'more timid': 'timid', 'louder': 'loud', 'quieter': 'quiet',
             'sharper': 'sharp', 'blunter': 'blunt', 'smoother': 'smooth', 'rougher': 'rough',
             'neater': 'neat', 'messier': 'messy', 'cheaper': 'cheap',
-            'more expensive': 'expensive', 'darker': 'dark', 'earlier': 'early', 'later': 'late'
+            'more expensive': 'expensive', 'darker': 'dark', 'earlier': 'early', 'later': 'late',
+            
+            # New Mappings (must correspond to the new pairs above)
+            'wider': 'wide', 'narrower': 'narrow',
+            'deeper': 'deep', 'shallower': 'shallow',
+            'thicker': 'thick', 'thinner': 'thin',
+            'kinder': 'kind', 'meaner': 'mean',
+            'busier': 'busy', 'freer': 'free',
+            'luckier': 'lucky', 'unluckier': 'unlucky',
+            'more patient': 'patient', 'less patient': 'patient',
+            'more careful': 'careful', 'more careless': 'careless',
+            'more generous': 'generous', 'stingier': 'stingy',
+            'more skilled': 'skilled', 'less skilled': 'skilled',
+            'more polite': 'polite', 'ruder': 'rude',
+            'more flexible': 'flexible', 'stiffer': 'stiff',
+            'more honest': 'honest', 'more dishonest': 'dishonest',
+            'more talkative': 'talkative', 'more reserved': 'reserved',
+            'more optimistic': 'optimistic', 'more pessimistic': 'pessimistic'
         }
         self._word_groups = [
-            # Synonyms
-            ('halt', 'stop', 'cold'), ('fast', 'quick', 'chair'), ('happy', 'joyful', 'river'),
-            ('large', 'big', 'car'), ('sofa', 'couch', 'apple'), ('begin', 'start', 'end'),
-            ('silent', 'quiet', 'loud'), ('difficult', 'hard', 'easy'), ('correct', 'right', 'wrong'),
-            ('rich', 'wealthy', 'poor'), ('unhappy', 'sad', 'glad'), ('beautiful', 'pretty', 'ugly'),
-            ('smart', 'intelligent', 'stupid'), ('speak', 'talk', 'listen'),
-            ('finish', 'complete', 'begin'), ('idea', 'thought', 'action'),
-            ('strange', 'unusual', 'normal'), ('powerful', 'strong', 'weak'),
-            ('annual', 'yearly', 'daily'), ('choose', 'select', 'reject'),
+            # --- Original Synonyms ---
+            ('halt', 'stop', 'cold'), 
+            ('fast', 'quick', 'chair'), 
+            ('happy', 'joyful', 'river'),
+            ('large', 'big', 'car'), 
+            ('sofa', 'couch', 'apple'), 
+            ('begin', 'start', 'end'),
+            ('silent', 'quiet', 'loud'), 
+            ('difficult', 'hard', 'easy'), 
+            ('correct', 'right', 'wrong'),
+            ('rich', 'wealthy', 'poor'), 
+            ('unhappy', 'sad', 'glad'), 
+            ('beautiful', 'pretty', 'ugly'),
+            ('smart', 'intelligent', 'stupid'), 
+            ('speak', 'talk', 'listen'),
+            ('finish', 'complete', 'begin'), 
+            ('idea', 'thought', 'action'),
+            ('strange', 'unusual', 'normal'), 
+            ('powerful', 'strong', 'weak'),
+            ('annual', 'yearly', 'daily'), 
+            ('choose', 'select', 'reject'),
             ('ancient', 'old', 'new'),
-            # Antonyms
-            ('up', 'down', 'table'), ('hot', 'cold', 'window'), ('begin', 'end', 'apple'),
-            ('good', 'bad', 'river'), ('always', 'never', 'banana'), ('accept', 'reject', 'carpet'),
-            ('above', 'below', 'pencil'), ('victory', 'defeat', 'bottle'),
-            ('success', 'failure', 'candle'), ('love', 'hate', 'truck'),
-            ('buy', 'sell', 'mountain'), ('push', 'pull', 'window'), ('light', 'dark', 'cookie'),
-            ('laugh', 'cry', 'forest'), ('remember', 'forget', 'guitar'),
-            ('friend', 'enemy', 'cloud'), ('question', 'answer', 'bridge'),
-            ('sunrise', 'sunset', 'elephant')
+
+            # --- New Synonyms ---
+            ('tiny', 'small', 'ocean'),
+            ('angry', 'furious', 'book'),
+            ('create', 'make', 'sky'),
+            ('help', 'assist', 'tree'),
+            ('job', 'work', 'cloud'),
+            ('ask', 'inquire', 'shoe'),
+            ('get', 'receive', 'give'),
+            ('tell', 'inform', 'secret'),
+            ('brave', 'courageous', 'table'),
+            ('calm', 'peaceful', 'storm'),
+            ('eager', 'keen', 'apathy'),
+            ('true', 'correct', 'false'),
+            ('story', 'tale', 'math'),
+            ('error', 'mistake', 'truth'),
+            ('gift', 'present', 'invoice'),
+            ('ally', 'partner', 'foe'),
+
+            # --- Tricky Synonyms ---
+            ('obtain', 'acquire', 'lose'),
+            ('lucid', 'clear', 'blanket'),
+            ('pensive', 'thoughtful', 'hammer'),
+            ('prudent', 'cautious', 'pillow'),
+            ('garrulous', 'loquacious', 'fork'),
+            ('adequate', 'sufficient', 'lacking'),
+            ('ephemeral', 'transient', 'spoon'),
+            ('taciturn', 'reserved', 'bottle'),
+            ('meticulous', 'thorough', 'lamp'),
+            ('ubiquitous', 'omnipresent', 'coin'),
+            ('trivial', 'minor', 'major'),
+            ('vital', 'essential', 'optional'),
+            ('flexible', 'adaptable', 'rigid'),
+
+            # --- Original Antonyms ---
+            ('up', 'down', 'table'), 
+            ('hot', 'cold', 'window'), 
+            ('begin', 'end', 'apple'),
+            ('good', 'bad', 'river'), 
+            ('always', 'never', 'banana'), 
+            ('accept', 'reject', 'carpet'),
+            ('above', 'below', 'pencil'), 
+            ('victory', 'defeat', 'bottle'),
+            ('success', 'failure', 'candle'), 
+            ('love', 'hate', 'truck'),
+            ('buy', 'sell', 'mountain'), 
+            ('push', 'pull', 'window'), 
+            ('light', 'dark', 'cookie'),
+            ('laugh', 'cry', 'forest'), 
+            ('remember', 'forget', 'guitar'),
+            ('friend', 'enemy', 'cloud'), 
+            ('question', 'answer', 'bridge'),
+            ('sunrise', 'sunset', 'elephant'),
+
+            # --- New Antonyms ---
+            ('arrive', 'depart', 'bread'),
+            ('build', 'destroy', 'flower'),
+            ('empty', 'full', 'paper'),
+            ('wet', 'dry', 'stone'),
+            ('enter', 'exit', 'music'),
+            ('simple', 'complex', 'water'),
+            ('lead', 'follow', 'path'),
+            ('public', 'private', 'square'),
+            ('find', 'lose', 'search'),
+            ('wide', 'narrow', 'road'),
+            ('smooth', 'rough', 'silk'),
+            ('day', 'night', 'noon'),
+            ('interior', 'exterior', 'wall'),
+            ('major', 'minor', 'scale'),
+            ('include', 'exclude', 'group'),
+
+            # --- Tricky Antonyms ---
+            ('expand', 'contract', 'phone'),
+            ('permit', 'forbid', 'ring'),
+            ('praise', 'criticize', 'key'),
+            ('reveal', 'conceal', 'boat'),
+            ('harmony', 'dissonance', 'mirror'),
+            ('frugal', 'extravagant', 'ship'),
+            ('optimist', 'pessimist', 'glove'),
+            ('ascend', 'descend', 'train'),
+            ('innocent', 'guilty', 'judge'),
+            ('bravery', 'cowardice', 'medal'),
+            ('chaos', 'order', 'mess'),
+            ('permanent', 'temporary', 'job'),
+            ('compulsory', 'voluntary', 'task')
         ]
 
         # Create a shuffled deck of word groups for the session.
