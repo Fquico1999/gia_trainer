@@ -353,14 +353,13 @@ class GiaApp(tk.Tk):
         score_text = f"Adjusted Score: {stats.get('adjusted_score', 'N/A')}"
         if isinstance(stats.get('adjusted_score'), (int, float)):
             user_score = stats['adjusted_score']
-            score_text = f"Adjusted Score: {user_score:.2f}"
         
             ### NEW: Calculate and display score percentage ###
-            max_possible_score = total_questions_answered
+            max_possible_score = self.question_bank_size
             # Ensure percentage isn't negative for display
             percentage_of_max = (max(0, user_score) / max_possible_score) * 100 if max_possible_score > 0 else 0
-            
-            percentage_text = f"Score Percentage: {percentage_of_max:.1f}% (of max {max_possible_score})"
+            score_text = f"Adjusted Score: {user_score:.2f} (of max {max_possible_score})"
+            percentage_text = f"Score Percentage: {percentage_of_max:.1f}% "
             tk.Label(main_frame, text=percentage_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(0,10))
 
         tk.Label(main_frame, text=score_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=5)
@@ -405,10 +404,11 @@ class GiaApp(tk.Tk):
             if not results:
                 summary_text += f"{task_name}: No questions answered.\n\n"
                 continue
-
-            total = len(results)
+            
+            # TODO: this is not a good fix, especially if the bank size is different across tasks.
+            total = self.question_bank_size
             correct = sum(1 for r in results if r['correct'])
-            wrong = total - correct 
+            wrong = total - correct
             accuracy = (correct / total) * 100
             
             penalty = self.settings["wrong_penalty"][task_name]
@@ -460,10 +460,10 @@ class GiaApp(tk.Tk):
                 accuracy, spq = (correct / total) * 100, time_elapsed / total
                 stats = {'accuracy': accuracy, 'spq': spq, 'adjusted_score': 'N/A'}
             else:
-                # Full test mode calculates and logs the adjusted score
+                # Full test mode calculates and logs the adjusted score which is based on how many questions in the bank
                 penalty = self.settings["wrong_penalty"][self.current_task_name]
                 stats = self.data_manager.log_summary_stats(
-                    self.current_task_name, total, correct, time_elapsed, penalty
+                    self.current_task_name, self.question_bank_size, correct, time_elapsed, penalty
                 )
             
             self._show_task_summary_screen(self.current_task_name, stats, total, time_elapsed, max_time)

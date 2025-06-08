@@ -62,7 +62,7 @@ class DataManager:
         seconds_per_question = duration / total
         wrong_count = total - correct
         
-        # Calculate the adjusted score
+        # Calculate the adjusted score - total here is the number of questions in the bank
         adjusted_score = correct + (wrong_count * wrong_penalty)
         
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
