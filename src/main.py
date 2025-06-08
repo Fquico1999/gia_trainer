@@ -11,6 +11,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from config import CONFIG, SELECTED_THEME
 from data_manager import DataManager
 from question_factory import QuestionFactory
+from ui_helpers import ScrollableFrame
 
 class GiaApp(tk.Tk):
     """The main application window with a modern, clean UI."""
@@ -304,6 +305,8 @@ class GiaApp(tk.Tk):
         self.task_frame = tk.Frame(self, bg=self.theme["app_bg"])
         self.task_frame.pack(expand=True, fill='both')
 
+        self.task_is_ending = False
+
         # Calculate question bank size for this task ---
         duration_seconds = self.settings["task_durations"][self.current_task_name]
         duration_minutes = duration_seconds / 60.0
@@ -342,41 +345,41 @@ class GiaApp(tk.Tk):
             self.time_left -= 1
             self._update_timer_id = self.after(1000, self._update_timer)
 
-    def _show_task_summary_screen(self, task_name, stats, total_questions_answered, time_elapsed, max_time):
+    def _show_task_summary_screen(self, task_name, stats):
         self._clear_frame()
         main_frame = tk.Frame(self, bg=self.theme["app_bg"])
-        main_frame.pack(expand=True, fill='both')
+        main_frame.pack(expand=True, fill='both', padx=20, pady=20)
 
         tk.Label(main_frame, text=f"Results for: {task_name}", font=self.settings["fonts"]["title"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=10)
 
-        # Display Adjusted Score
-        score_text = f"Adjusted Score: {stats.get('adjusted_score', 'N/A')}"
-        if isinstance(stats.get('adjusted_score'), (int, float)):
-            user_score = stats['adjusted_score']
-        
-            ### NEW: Calculate and display score percentage ###
-            max_possible_score = self.question_bank_size
-            # Ensure percentage isn't negative for display
-            percentage_of_max = (max(0, user_score) / max_possible_score) * 100 if max_possible_score > 0 else 0
-            score_text = f"Adjusted Score: {user_score:.2f} (of max {max_possible_score})"
-            percentage_text = f"Score Percentage: {percentage_of_max:.1f}% "
-            tk.Label(main_frame, text=percentage_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(0,10))
-
-        tk.Label(main_frame, text=score_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=5)
-        time_text = f"Time Taken: {time_elapsed:.1f}s / {max_time}s"
+        # --- Display Key Metrics ---
+        # Time
+        time_text = f"Time Taken: {stats['time_elapsed']:.1f}s / {stats['max_time']}s"
         tk.Label(main_frame, text=time_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=5)
         
+        # Accuracy
+        accuracy_text = f"Accuracy: {stats['accuracy']:.1f}% ({stats['answered_correct']} / {stats['total_answered']})"
+        tk.Label(main_frame, text=accuracy_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=5)
+
+        # Adjusted Score
+        if isinstance(stats.get('adjusted_score'), (int, float)):
+            score_text = f"Adjusted Score: {stats['adjusted_score']:.2f}"
+            percentage_text = f"Score Percentage: {stats['score_percentage']:.1f}% (of max {stats['question_bank_size']})"
+            tk.Label(main_frame, text=score_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(15, 5))
+            tk.Label(main_frame, text=percentage_text, font=self.settings["fonts"]["header"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=5)
+
+        # Plotting logic
         summary_df = self.data_manager.load_summary_data()
         history_df = summary_df[summary_df['task_name'] == task_name]
 
-        fig, ax = plt.subplots(figsize=(6, 6))
+        fig, ax = plt.subplots(figsize=(5, 5))
         fig.patch.set_facecolor(self.theme["app_bg"])
         ax.set_facecolor(self.theme["card_bg"])
 
         if not history_df.empty:
             ax.scatter(history_df['accuracy'], history_df['seconds_per_question'], alpha=0.6, s=50, label='Past Logged Attempts', color="#3498db")
-
-        ax.scatter(stats['accuracy'], stats['spq'], color="#e74c3c", edgecolors='black', s=120, marker='*', label='This Attempt')
+        if stats['total_answered'] > 0:
+            ax.scatter(stats['accuracy'], stats['spq'], color="#e74c3c", edgecolors='black', s=120, marker='*', label='This Attempt')
         
         ax.set_title('Accuracy vs. Time per Question', color=self.theme["label_fg"])
         ax.set_xlabel('Accuracy (%)', color=self.theme["label_fg"])
@@ -384,59 +387,48 @@ class GiaApp(tk.Tk):
         ax.legend()
         ax.grid(True, alpha=0.2)
         ax.tick_params(colors=self.theme["label_fg"])
+        fig.tight_layout(pad=2.0)
         
-        fig.tight_layout(pad=3.0)
         canvas = FigureCanvasTkAgg(fig, master=main_frame)
-        canvas.get_tk_widget().pack(side='top', fill='both', expand=True, padx=20, pady=10)
+        canvas.get_tk_widget().pack(side='top', fill='both', expand=True, pady=10)
         
         button_text, command = ("Back to Home", self.create_welcome_screen) if self.is_practice_mode else ("Continue", self.next_task)
-        tk.Button(main_frame, text=button_text, font=CONFIG["fonts"]["button"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], activebackground=self.theme["button_active_bg"], activeforeground=self.theme["button_fg"], relief='flat', padx=20, pady=10, command=command).pack(pady=20)
+        tk.Button(main_frame, text=button_text, font=CONFIG["fonts"]["button"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], relief='flat', padx=20, pady=10, command=command).pack(pady=20)
 
     def _show_final_results(self):
         self._clear_frame()
-        main_frame = tk.Frame(self, bg=self.theme["app_bg"])
-        main_frame.pack(expand=True)
+        # Main content area that will be scrollable
+        scrollable_frame = ScrollableFrame(self, bg=self.theme["app_bg"])
+        scrollable_frame.pack(side="top", fill="both", expand=True)
+        main_frame = scrollable_frame.interior
+        
         tk.Label(main_frame, text="Test Series Complete!", font=self.settings["fonts"]["title"], bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=(40, 20))
         
-        summary_text = "Overall Summary:\n\n"
-        for task_name in self.task_order:
-            results = [r for r in self.series_results if r['task'] == task_name]
-            if not results:
-                summary_text += f"{task_name}: No questions answered.\n\n"
-                continue
-            
-            # TODO: this is not a good fix, especially if the bank size is different across tasks.
-            total = self.question_bank_size
-            correct = sum(1 for r in results if r['correct'])
-            wrong = total - correct
-            accuracy = (correct / total) * 100
-            
-            penalty = self.settings["wrong_penalty"][task_name]
-            adjusted_score = correct + (wrong * penalty)
-
-            max_possible_score = total
-            percentage_of_max = (max(0, adjusted_score) / max_possible_score) * 100 if max_possible_score > 0 else 0
-
-            ### NEW: Calculate and add Time Taken ###
-            # Sum the time for each question (which is stored in milliseconds)
-            total_time_ms = sum(r['time'] for r in results)
-            total_time_s = total_time_ms / 1000.0
-            max_time = self.settings["task_durations"][task_name]
+        summary_text = ""
+        for task_summary in self.series_results:
+            task_name = task_summary['task_name']
             
             summary_text += (
                 f"{task_name}:\n"
-                f"  - Answered: {total}\n"
-                f"  - Accuracy: {accuracy:.1f}%\n"
-                f"  - Adjusted Score: {adjusted_score:.2f}\n"
-                f"  - Score Percentage: {percentage_of_max:.1f}%\n"
-                f"  - Time Taken: {total_time_s:.1f}s / {max_time}s\n\n" # Added line
+                f"  - Questions in Bank: {task_summary['question_bank_size']}\n"
+                f"  - Answered: {task_summary['total_answered']} ({task_summary['answered_correct']} ✓, {task_summary['answered_wrong']} ✗, {task_summary['not_answered']} ?)\n"
+                f"  - Accuracy: {task_summary['accuracy']:.1f}%\n"
+                f"  - Adjusted Score: {task_summary['adjusted_score']:.2f}\n"
+                f"  - Score Percentage: {task_summary['score_percentage']:.1f}%\n"
+                f"  - Time Taken: {task_summary['time_elapsed']:.1f}s / {task_summary['max_time']}s\n\n"
             )
             
         tk.Label(main_frame, text=summary_text, font=self.settings["fonts"]["small"], justify='left', bg=self.theme["app_bg"], fg=self.theme["label_fg"]).pack(pady=20, padx=50)
-        tk.Button(main_frame, text="Practice Again", font=self.settings["fonts"]["button"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], activebackground=self.theme["button_active_bg"], activeforeground=self.theme["button_fg"], relief='flat', command=self.create_welcome_screen).pack(pady=20)
+        
+        # The button is now a direct child of the main window, so it's not scrolled
+        tk.Button(self, text="Practice Again", font=self.settings["fonts"]["button"], bg=self.theme["button_bg"], fg=self.theme["button_fg"], relief='flat', command=self.create_welcome_screen).pack(pady=20, ipady=5)
     
     def start_series(self):
-        self.is_practice_mode = False; self.task_order = list(CONFIG["task_durations"].keys()); self.current_task_index = -1; self.series_results = []; self.next_task()
+        self.is_practice_mode = False
+        self.task_order = list(self.settings["task_durations"].keys())
+        self.current_task_index = -1
+        self.series_results = [] # This stores summary dicts per task
+        self.next_task()
 
     def start_practice_session(self, task_name):
         self.is_practice_mode = True; self.current_task_name = task_name; self.current_task_index = -1; self.series_results = []; self._show_task_intro()
@@ -447,29 +439,55 @@ class GiaApp(tk.Tk):
         else: self._show_final_results()
 
     def end_task(self):
+        if hasattr(self, 'task_is_ending') and self.task_is_ending:
+            return
+        self.task_is_ending = True
+        
         self._cancel_timers()
-        total = len(self.current_task_results)
-        if total > 0:
-            correct = sum(r['correct'] for r in self.current_task_results)
-            # Use the actual time elapsed if the task ended early, otherwise use the full duration
-            max_time = self.settings["task_durations"][self.current_task_name]
-            time_elapsed = max_time - max(0, self.time_left)
-            
-            if self.is_practice_mode:
-                # Practice mode doesn't use adjusted score
-                accuracy, spq = (correct / total) * 100, time_elapsed / total
-                stats = {'accuracy': accuracy, 'spq': spq, 'adjusted_score': 'N/A'}
-            else:
-                # Full test mode calculates and logs the adjusted score which is based on how many questions in the bank
-                penalty = self.settings["wrong_penalty"][self.current_task_name]
-                stats = self.data_manager.log_summary_stats(
-                    self.current_task_name, self.question_bank_size, correct, time_elapsed, penalty
-                )
-            
-            self._show_task_summary_screen(self.current_task_name, stats, total, time_elapsed, max_time)
+
+        # --- UNIFIED SCORING LOGIC ---
+        stats = {}
+        bank_size = self.question_bank_size
+        answered_correct = sum(r['correct'] for r in self.current_task_results)
+        total_answered = len(self.current_task_results)
+        answered_wrong = total_answered - answered_correct
+        not_answered = bank_size - total_answered
+        
+        max_time = self.settings["task_durations"][self.current_task_name]
+        time_elapsed = max_time - max(0, self.time_left)
+
+        stats['question_bank_size'] = bank_size
+        stats['total_answered'] = total_answered
+        stats['answered_correct'] = answered_correct
+        stats['answered_wrong'] = answered_wrong
+        stats['not_answered'] = not_answered
+        stats['max_time'] = max_time
+        stats['time_elapsed'] = time_elapsed
+        stats['accuracy'] = (answered_correct / total_answered * 100) if total_answered > 0 else 0
+        stats['spq'] = (time_elapsed / total_answered) if total_answered > 0 else 0
+
+        if self.is_practice_mode:
+            stats['adjusted_score'] = 'N/A'
+            stats['score_percentage'] = 'N/A'
         else:
-            if self.is_practice_mode: self.create_welcome_screen()
-            else: self.next_task()
+            penalty = self.settings["wrong_penalty"][self.current_task_name]
+            # Adjusted score penalizes wrong AND unanswered questions
+            stats['adjusted_score'] = answered_correct + (answered_wrong + not_answered) * penalty
+            stats['score_percentage'] = (max(0, stats['adjusted_score']) / bank_size * 100) if bank_size > 0 else 0
+            
+            # Log to CSV
+            self.data_manager.log_summary_stats(self.current_task_name, bank_size, answered_correct, time_elapsed, penalty)
+            
+            # Store this complete summary for the final report screen
+            task_summary = stats.copy()
+            task_summary['task_name'] = self.current_task_name
+            self.series_results.append(task_summary)
+
+        if total_answered > 0 or not self.is_practice_mode:
+            self._show_task_summary_screen(self.current_task_name, stats)
+        else:
+            # If nothing was answered in practice mode, just go back
+            self.create_welcome_screen()
 
     def show_next_question(self):
         self._clear_frame(self.task_frame)
@@ -477,8 +495,15 @@ class GiaApp(tk.Tk):
         self.current_question = gens[self.current_task_name](); self._display_question_ui(self.current_question); self.question_start_time = time.time()
 
     def _check_answer(self, selected_answer):
-        time_taken_ms, is_correct = (time.time() - self.question_start_time) * 1000, (selected_answer == self.current_question['answer'])
-        
+        """
+        Processes the user's answer, logs it, and decides whether to
+        show the next question or end the task.
+        """
+        # 1. Calculate the result of this single question
+        time_taken_ms = (time.time() - self.question_start_time) * 1000
+        is_correct = (selected_answer == self.current_question['answer'])
+
+        # 2. Handle detailed debug logging if enabled
         if self.settings['debug_logging_enabled'] and not self.is_practice_mode:
             self.data_manager.log_debug_event(
                 task_name=self.current_task_name,
@@ -489,18 +514,21 @@ class GiaApp(tk.Tk):
                 is_correct=is_correct
             )
         
-        if not self.is_practice_mode:
-            self.data_manager.log_question_result(self.current_task_name, is_correct, time_taken_ms)
-            self.series_results.append({'task': self.current_task_name, 'correct': is_correct, 'time': time_taken_ms})
-        self.current_task_results.append({'correct': is_correct}); self.show_next_question()
+        # 3. Store the simple result (correct/incorrect) for the current task's stats.
+        # This list is used by end_task() to calculate the summary.
+        self.current_task_results.append({'correct': is_correct})
+
+        # 4. Increment the count of questions answered in this task.
         self.questions_answered_in_task += 1
-        # Check if the question bank is exhausted
+
+        # 5. Determine the next action: continue the task or end it.
+        # This check only applies in the full test mode. Practice mode always continues until the timer runs out.
         if not self.is_practice_mode and self.questions_answered_in_task >= self.question_bank_size:
-            # End the task immediately if the question limit is reached in a full test
+            # The question limit has been reached, so the task must end.
             print(f"Question limit of {self.question_bank_size} reached. Ending task.")
             self.end_task()
         else:
-            # Otherwise, just show the next question
+            # The task is not over, so proceed to the next question.
             self.show_next_question()
 
     def _cancel_timers(self):
